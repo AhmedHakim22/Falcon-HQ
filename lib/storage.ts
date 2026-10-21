@@ -2,17 +2,17 @@ import { Idea, Script, BusinessOutcome, XpEvent, TeamQuest } from './types';
 import { getInitialSectionsForFramework } from './frameworks';
 
 const STORAGE_KEYS = {
-  IDEAS: 'falcon_ideas_v3',
-  SCRIPTS: 'falcon_scripts_v3',
-  OUTCOMES: 'falcon_outcomes_v3',
-  XP_EVENTS: 'falcon_xp_events_v3',
-  STREAK: 'falcon_streak_v3',
+  IDEAS: 'falcon_ideas_v4',
+  SCRIPTS: 'falcon_scripts_v4',
+  OUTCOMES: 'falcon_outcomes_v4',
+  XP_EVENTS: 'falcon_xp_events_v4',
+  STREAK: 'falcon_streak_v4',
 };
 
-// Initial realistic seed data for Falcon
+// Valid UUIDs for database compatibility
 const INITIAL_IDEAS: Idea[] = [
   {
-    id: 'idea-1',
+    id: '11111111-1111-4111-a111-111111111111',
     title: 'مقارنة اصفرار الجرابات الرخيصة مقابل كفر فالكون الكريستال UV',
     category: 'product',
     status: 'ready_to_film',
@@ -25,12 +25,12 @@ const INITIAL_IDEAS: Idea[] = [
     reachScore: 4,
     easeScore: 4,
     totalPriorityScore: 92.0, // High priority
-    scriptIds: ['script-1'],
+    scriptIds: ['aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'],
     createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 86400000).toISOString(),
   },
   {
-    id: 'idea-2',
+    id: '22222222-2222-4222-a222-222222222222',
     title: 'تحدي رمي الموبايل من الدور الثاني بكفر فالكون ضد الصدمات',
     category: 'marketing',
     status: 'scripting',
@@ -43,12 +43,12 @@ const INITIAL_IDEAS: Idea[] = [
     reachScore: 5,
     easeScore: 3,
     totalPriorityScore: 81.0,
-    scriptIds: ['script-2'],
+    scriptIds: ['bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'],
     createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 86400000).toISOString(),
   },
   {
-    id: 'idea-3',
+    id: '33333333-3333-4333-a333-333333333333',
     title: 'طباعة صورة تخرج مخصصة مع باركود أغنية سبوتيفاي المفضلة',
     category: 'content',
     status: 'inbox',
@@ -63,8 +63,8 @@ const INITIAL_IDEAS: Idea[] = [
 
 const INITIAL_SCRIPTS: Script[] = [
   {
-    id: 'script-1',
-    ideaId: 'idea-1',
+    id: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
+    ideaId: '11111111-1111-4111-a111-111111111111',
     title: 'مقارنة الاصفرار الصادمة - سكريبت AIDA',
     framework: 'AIDA',
     openLoopsLevel: 'light',
@@ -117,8 +117,8 @@ const INITIAL_SCRIPTS: Script[] = [
 
 const INITIAL_OUTCOMES: BusinessOutcome[] = [
   {
-    id: 'out-1',
-    scriptId: 'script-1',
+    id: 'cccccccc-cccc-4ccc-cccc-cccccccccccc',
+    scriptId: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
     ideaTitle: 'مقارنة اصفرار الجرابات الرخيصة مقابل كفر فالكون',
     publishedUrl: 'https://instagram.com/reel/published1',
     ordersAttributed: 42,
@@ -133,28 +133,28 @@ const INITIAL_OUTCOMES: BusinessOutcome[] = [
 
 const INITIAL_XP_EVENTS: XpEvent[] = [
   {
-    id: 'xp-1',
+    id: 'dddddddd-dddd-4ddd-dddd-dddddddddddd',
     eventType: 'idea_created',
     xpAmount: 5,
     description: 'تسجيل فكرة جديدة: مقارنة الاصفرار',
     createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
   },
   {
-    id: 'xp-2',
+    id: 'eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee',
     eventType: 'script_completed',
     xpAmount: 15,
     description: 'كتابة سكريبت AIDA لفيديو الاصفرار',
     createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
   },
   {
-    id: 'xp-3',
+    id: 'ffffffff-ffff-4fff-ffff-ffffffffffff',
     eventType: 'script_approved',
     xpAmount: 25,
     description: 'اعتماد السكريبت وتجهيزه للتصوير',
     createdAt: new Date(Date.now() - 1 * 86400000).toISOString(),
   },
   {
-    id: 'xp-4',
+    id: '12121212-1212-4212-a212-121212121212',
     eventType: 'outcome_recorded',
     xpAmount: 15,
     description: 'تسجيل نتائج حملة الاصفرار (14,700 جنيه إيراد)',

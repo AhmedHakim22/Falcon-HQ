@@ -20,7 +20,16 @@ import {
   addXpEvent,
   INITIAL_TEAM_QUESTS 
 } from '@/lib/storage';
-import { syncIdeaToSupabase, syncScriptToSupabase, syncOutcomeToSupabase } from '@/lib/supabaseSync';
+import { 
+  fetchRemoteData, 
+  syncIdeaToSupabase, 
+  syncScriptToSupabase, 
+  syncOutcomeToSupabase, 
+  syncXpEventToSupabase, 
+  deleteIdeaFromSupabase, 
+  subscribeToRealtimeChanges, 
+  generateUUID 
+} from '@/lib/supabaseSync';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { Idea, Script, BusinessOutcome, XpEvent, IdeaStatus, ScriptStatus } from '@/lib/types';
 import { calculatePriorityScore } from '@/lib/priority';
@@ -43,14 +52,70 @@ export default function FalconHQApp() {
   const [priorityModalIdea, setPriorityModalIdea] = useState<Idea | null>(null);
   const [activeScript, setActiveScript] = useState<Script | null>(null);
 
-  // Hydrate from local storage on mount
+  // Hydrate from LocalStorage first, then fetch live from Supabase & subscribe to Realtime
   useEffect(() => {
+    // 1. Instant local render
     setIdeas(getStoredIdeas());
-    const loadedScripts = getStoredScripts();
-    setScripts(loadedScripts);
-    if (loadedScripts.length > 0) setActiveScript(loadedScripts[0]);
+    const initialScripts = getStoredScripts();
+    setScripts(initialScripts);
+    if (initialScripts.length > 0) setActiveScript(initialScripts[0]);
     setOutcomes(getStoredOutcomes());
     setXpEvents(getStoredXpEvents());
+
+    // 2. Fetch live data from Supabase
+    fetchRemoteData().then((remote) => {
+      if (remote.ideas && remote.ideas.length > 0) {
+        setIdeas(remote.ideas);
+        saveStoredIdeas(remote.ideas);
+        if (remote.scripts && remote.scripts.length > 0) {
+          setScripts(remote.scripts);
+          saveStoredScripts(remote.scripts);
+          setActiveScript(remote.scripts[0]);
+        }
+        if (remote.outcomes && remote.outcomes.length > 0) {
+          setOutcomes(remote.outcomes);
+          saveStoredOutcomes(remote.outcomes);
+        }
+        if (remote.xpEvents && remote.xpEvents.length > 0) {
+          setXpEvents(remote.xpEvents);
+        }
+      } else if (isSupabaseConfigured) {
+        // Supabase is empty: push initial seed so both partners see it
+        const seedIdeas = getStoredIdeas();
+        const seedScripts = getStoredScripts();
+        const seedOutcomes = getStoredOutcomes();
+        const seedXp = getStoredXpEvents();
+        seedIdeas.forEach((i) => syncIdeaToSupabase(i));
+        seedScripts.forEach((s) => syncScriptToSupabase(s));
+        seedOutcomes.forEach((o) => syncOutcomeToSupabase(o));
+        seedXp.forEach((x) => syncXpEventToSupabase(x));
+      }
+    });
+
+    // 3. Realtime Listener: updates immediately whenever Ahmed or Moaz saves anything
+    const unsubscribe = subscribeToRealtimeChanges(() => {
+      fetchRemoteData().then((remote) => {
+        if (remote.ideas) {
+          setIdeas(remote.ideas);
+          saveStoredIdeas(remote.ideas);
+        }
+        if (remote.scripts) {
+          setScripts(remote.scripts);
+          saveStoredScripts(remote.scripts);
+        }
+        if (remote.outcomes) {
+          setOutcomes(remote.outcomes);
+          saveStoredOutcomes(remote.outcomes);
+        }
+        if (remote.xpEvents) {
+          setXpEvents(remote.xpEvents);
+        }
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Compute total XP
@@ -58,7 +123,7 @@ export default function FalconHQApp() {
 
   // Handlers: Save Idea
   const handleSaveIdea = (newIdeaData: Partial<Idea>, nextAction: 'start_script' | 'save_inbox' | 'action_plan') => {
-    const newId = `idea_${Date.now()}`;
+    const newId = generateUUID();
     const newIdea: Idea = {
       id: newId,
       title: newIdeaData.title || 'فكرة جديدة',
@@ -83,6 +148,7 @@ export default function FalconHQApp() {
       description: `تسجيل فكرة جديدة: ${newIdea.title}`,
     });
     setXpEvents((prev) => [event, ...prev]);
+    syncXpEventToSupabase(event);
 
     // Handle Route
     if (nextAction === 'start_script') {
@@ -92,7 +158,7 @@ export default function FalconHQApp() {
 
   // Handlers: Start Script from Idea
   const handleStartScriptFromIdea = (idea: Idea) => {
-    const scriptId = `script_${Date.now()}`;
+    const scriptId = generateUUID();
     const newScript: Script = {
       id: scriptId,
       ideaId: idea.id,
@@ -111,8 +177,9 @@ export default function FalconHQApp() {
 
     const updatedScripts = [newScript, ...scripts];
     setScripts(updatedScripts);
-    saveStoredScripts(updatedScripts);
     setActiveScript(newScript);
+    saveStoredScripts(updatedScripts);
+    syncScriptToSupabase(newScript);
 
     // Update Idea status
     const updatedIdeas = ideas.map((i) =>
@@ -120,6 +187,8 @@ export default function FalconHQApp() {
     );
     setIdeas(updatedIdeas);
     saveStoredIdeas(updatedIdeas);
+    const updatedIdea = updatedIdeas.find((i) => i.id === idea.id);
+    if (updatedIdea) syncIdeaToSupabase(updatedIdea);
 
     setActiveTab('scripts');
   };
@@ -147,6 +216,8 @@ export default function FalconHQApp() {
 
     setIdeas(updatedIdeas);
     saveStoredIdeas(updatedIdeas);
+    const updatedIdea = updatedIdeas.find((i) => i.id === ideaId);
+    if (updatedIdea) syncIdeaToSupabase(updatedIdea);
 
     // Award XP
     const event = addXpEvent({
@@ -155,6 +226,7 @@ export default function FalconHQApp() {
       description: `تقييم أولوية فكرة (درجة ${totalScore || 0})`,
     });
     setXpEvents((prev) => [event, ...prev]);
+    syncXpEventToSupabase(event);
   };
 
   // Handlers: Save Script
@@ -175,6 +247,11 @@ export default function FalconHQApp() {
       return s;
     });
     setScripts(updatedScripts);
+    const updatedScript = updatedScripts.find((s) => s.id === scriptId);
+    if (updatedScript) {
+      setActiveScript(updatedScript);
+      syncScriptToSupabase(updatedScript);
+    }
     saveStoredScripts(updatedScripts);
 
     if (status === 'review_ready') {
@@ -184,6 +261,7 @@ export default function FalconHQApp() {
         description: 'إكمال مسودة سكريبت وإرساله للمراجعة',
       });
       setXpEvents((prev) => [ev, ...prev]);
+      syncXpEventToSupabase(ev);
     } else if (status === 'ready_to_film') {
       const ev = addXpEvent({
         eventType: 'script_approved',
@@ -191,6 +269,7 @@ export default function FalconHQApp() {
         description: 'اعتماد سكريبت وتجهيزه للتصوير',
       });
       setXpEvents((prev) => [ev, ...prev]);
+      syncXpEventToSupabase(ev);
     }
   };
 
@@ -199,13 +278,14 @@ export default function FalconHQApp() {
     const updated = ideas.filter((i) => i.id !== ideaId);
     setIdeas(updated);
     saveStoredIdeas(updated);
+    deleteIdeaFromSupabase(ideaId);
   };
 
   // Handlers: Add Outcome
   const handleAddOutcome = (newOutcomeData: Omit<BusinessOutcome, 'id' | 'recordedAt'>) => {
     const newOutcome: BusinessOutcome = {
       ...newOutcomeData,
-      id: `out_${Date.now()}`,
+      id: generateUUID(),
       recordedAt: new Date().toISOString(),
     };
     const updated = [newOutcome, ...outcomes];
@@ -219,6 +299,7 @@ export default function FalconHQApp() {
       description: `توثيق نتائج فيديو: ${newOutcome.ordersAttributed} طلب (${newOutcome.revenueAttributed.toLocaleString()} ج.م)`,
     });
     setXpEvents((prev) => [ev, ...prev]);
+    syncXpEventToSupabase(ev);
   };
 
   return (
@@ -267,6 +348,8 @@ export default function FalconHQApp() {
               const updated = ideas.map((i) => (i.id === id ? { ...i, status } : i));
               setIdeas(updated);
               saveStoredIdeas(updated);
+              const target = updated.find((i) => i.id === id);
+              if (target) syncIdeaToSupabase(target);
             }}
           />
         )}
