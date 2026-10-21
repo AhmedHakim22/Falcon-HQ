@@ -15,7 +15,44 @@ export function generateUUID(): string {
 }
 
 // -----------------------------------------------------------------------------
-// FETCH ALL DATA FROM SUPABASE
+// REALTIME BROADCAST CHANNEL (Zero-config instant peer-to-peer sync)
+// -----------------------------------------------------------------------------
+let activeChannel: any = null;
+
+function getSharedChannel() {
+  if (!supabase || !isSupabaseConfigured) return null;
+  if (!activeChannel) {
+    activeChannel = supabase.channel('falcon-hq-realtime-room', {
+      config: {
+        broadcast: { self: false },
+      },
+    });
+    activeChannel.subscribe((status: string) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('[Supabase Realtime] Connected to live sync channel');
+      }
+    });
+  }
+  return activeChannel;
+}
+
+export function broadcastDataChange(entity: string) {
+  try {
+    const channel = getSharedChannel();
+    if (channel) {
+      channel.send({
+        type: 'broadcast',
+        event: 'falcon_data_change',
+        payload: { entity, timestamp: Date.now() },
+      });
+    }
+  } catch (err) {
+    console.warn('[Supabase Broadcast] Send warning:', err);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// FETCH ALL DATA FROM SUPABASE (Independent resilient fetching)
 // -----------------------------------------------------------------------------
 export async function fetchRemoteData(): Promise<{
   ideas: Idea[] | null;
@@ -28,77 +65,82 @@ export async function fetchRemoteData(): Promise<{
   }
 
   try {
-    const [ideasRes, scriptsRes, outcomesRes, xpRes] = await Promise.all([
+    const [ideasRes, scriptsRes, outcomesRes, xpRes] = await Promise.allSettled([
       supabase.from('ideas').select('*').eq('is_deleted', false).order('created_at', { ascending: false }),
       supabase.from('scripts').select('*').eq('is_deleted', false).order('created_at', { ascending: false }),
       supabase.from('business_outcomes').select('*').order('created_at', { ascending: false }),
       supabase.from('xp_ledger').select('*').order('created_at', { ascending: false }),
     ]);
 
-    if (ideasRes.error || scriptsRes.error || outcomesRes.error || xpRes.error) {
-      console.warn('Supabase fetch error, fallback to local buffer:', {
-        ideasError: ideasRes.error?.message,
-        scriptsError: scriptsRes.error?.message,
-      });
-      return { ideas: null, scripts: null, outcomes: null, xpEvents: null };
+    let ideas: Idea[] | null = null;
+    let scripts: Script[] | null = null;
+    let outcomes: BusinessOutcome[] | null = null;
+    let xpEvents: XpEvent[] | null = null;
+
+    if (ideasRes.status === 'fulfilled' && !ideasRes.value.error && ideasRes.value.data) {
+      ideas = ideasRes.value.data.map((row: any) => ({
+        id: row.id,
+        title: row.title,
+        category: row.category,
+        status: row.status,
+        sourceUrl: row.source_url || '',
+        notes: row.notes || '',
+        creatorName: row.creator_name || 'أحمد',
+        assigneeName: row.assignee_name || undefined,
+        goalFitScore: row.goal_fit_score || undefined,
+        customerValueScore: row.customer_value_score || undefined,
+        reachScore: row.reach_score || undefined,
+        easeScore: row.ease_score || undefined,
+        totalPriorityScore: row.total_priority_score ? Number(row.total_priority_score) : null,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
     }
 
-    const ideas: Idea[] = (ideasRes.data || []).map((row: any) => ({
-      id: row.id,
-      title: row.title,
-      category: row.category,
-      status: row.status,
-      sourceUrl: row.source_url || '',
-      notes: row.notes || '',
-      creatorName: row.creator_name || 'أحمد',
-      assigneeName: row.assignee_name || undefined,
-      goalFitScore: row.goal_fit_score || undefined,
-      customerValueScore: row.customer_value_score || undefined,
-      reachScore: row.reach_score || undefined,
-      easeScore: row.ease_score || undefined,
-      totalPriorityScore: row.total_priority_score ? Number(row.total_priority_score) : null,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
+    if (scriptsRes.status === 'fulfilled' && !scriptsRes.value.error && scriptsRes.value.data) {
+      scripts = scriptsRes.value.data.map((row: any) => ({
+        id: row.id,
+        ideaId: row.idea_id || undefined,
+        title: row.title,
+        framework: row.framework,
+        openLoopsLevel: row.open_loops_level,
+        sections: row.content_json || [],
+        openLoops: row.open_loops_json || [],
+        status: row.status,
+        authorName: row.author_name || 'أحمد',
+        reviewerName: row.reviewer_name || undefined,
+        estimatedDurationSeconds: row.estimated_duration_seconds || 0,
+        wordCount: row.word_count || 0,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+    }
 
-    const scripts: Script[] = (scriptsRes.data || []).map((row: any) => ({
-      id: row.id,
-      ideaId: row.idea_id || undefined,
-      title: row.title,
-      framework: row.framework,
-      openLoopsLevel: row.open_loops_level,
-      sections: row.content_json || [],
-      openLoops: row.open_loops_json || [],
-      status: row.status,
-      authorName: row.author_name || 'أحمد',
-      reviewerName: row.reviewer_name || undefined,
-      estimatedDurationSeconds: row.estimated_duration_seconds || 0,
-      wordCount: row.word_count || 0,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
+    if (outcomesRes.status === 'fulfilled' && !outcomesRes.value.error && outcomesRes.value.data) {
+      outcomes = outcomesRes.value.data.map((row: any) => ({
+        id: row.id,
+        scriptId: row.script_id,
+        ideaTitle: row.idea_title,
+        publishedUrl: row.published_url || '',
+        ordersAttributed: row.orders_attributed || 0,
+        revenueAttributed: Number(row.revenue_attributed) || 0,
+        inquiriesCount: row.inquiries_count || 0,
+        confidenceLevel: row.confidence_level || 'high',
+        keyLearning: row.key_learning || '',
+        isWinningPattern: row.is_winning_pattern ?? true,
+        recordedAt: row.recorded_at,
+      }));
+    }
 
-    const outcomes: BusinessOutcome[] = (outcomesRes.data || []).map((row: any) => ({
-      id: row.id,
-      scriptId: row.script_id,
-      ideaTitle: row.idea_title,
-      publishedUrl: row.published_url || '',
-      ordersAttributed: row.orders_attributed || 0,
-      revenueAttributed: Number(row.revenue_attributed) || 0,
-      inquiriesCount: row.inquiries_count || 0,
-      confidenceLevel: row.confidence_level || 'high',
-      keyLearning: row.key_learning || '',
-      isWinningPattern: row.is_winning_pattern ?? true,
-      recordedAt: row.recorded_at,
-    }));
-
-    const xpEvents: XpEvent[] = (xpRes.data || []).map((row: any) => ({
-      id: row.id,
-      eventType: row.event_type,
-      xpAmount: row.xp_amount,
-      description: row.description,
-      createdAt: row.created_at,
-    }));
+    if (xpRes.status === 'fulfilled' && !xpRes.value.error && xpRes.value.data) {
+      xpEvents = xpRes.value.data.map((row: any) => ({
+        id: row.id,
+        eventType: row.event_type,
+        xpAmount: row.xp_amount,
+        description: row.description,
+        createdAt: row.created_at,
+      }));
+    }
 
     return { ideas, scripts, outcomes, xpEvents };
   } catch (err) {
@@ -108,7 +150,7 @@ export async function fetchRemoteData(): Promise<{
 }
 
 // -----------------------------------------------------------------------------
-// SYNC OPERATIONS
+// SYNC OPERATIONS (Upsert + Broadcast)
 // -----------------------------------------------------------------------------
 export async function syncIdeaToSupabase(idea: Idea) {
   if (!supabase || !isSupabaseConfigured) return;
@@ -132,7 +174,11 @@ export async function syncIdeaToSupabase(idea: Idea) {
     };
 
     const { error } = await supabase.from('ideas').upsert(payload, { onConflict: 'id' });
-    if (error) console.warn('Supabase sync idea warning:', error.message);
+    if (error) {
+      console.warn('Supabase sync idea warning:', error.message);
+    } else {
+      broadcastDataChange('ideas');
+    }
   } catch (err) {
     console.warn('Network sync paused (using local buffer):', err);
   }
@@ -141,7 +187,10 @@ export async function syncIdeaToSupabase(idea: Idea) {
 export async function deleteIdeaFromSupabase(ideaId: string) {
   if (!supabase || !isSupabaseConfigured) return;
   try {
-    await supabase.from('ideas').update({ is_deleted: true }).eq('id', ideaId);
+    const { error } = await supabase.from('ideas').update({ is_deleted: true }).eq('id', ideaId);
+    if (!error) {
+      broadcastDataChange('ideas');
+    }
   } catch (err) {
     console.warn('Delete idea sync error:', err);
   }
@@ -168,7 +217,11 @@ export async function syncScriptToSupabase(script: Script) {
     };
 
     const { error } = await supabase.from('scripts').upsert(payload, { onConflict: 'id' });
-    if (error) console.warn('Supabase sync script warning:', error.message);
+    if (error) {
+      console.warn('Supabase sync script warning:', error.message);
+    } else {
+      broadcastDataChange('scripts');
+    }
   } catch (err) {
     console.warn('Network sync paused (using local buffer):', err);
   }
@@ -191,7 +244,11 @@ export async function syncOutcomeToSupabase(outcome: BusinessOutcome) {
     };
 
     const { error } = await supabase.from('business_outcomes').upsert(payload, { onConflict: 'id' });
-    if (error) console.warn('Supabase sync outcome warning:', error.message);
+    if (error) {
+      console.warn('Supabase sync outcome warning:', error.message);
+    } else {
+      broadcastDataChange('business_outcomes');
+    }
   } catch (err) {
     console.warn('Network sync paused (using local buffer):', err);
   }
@@ -200,13 +257,16 @@ export async function syncOutcomeToSupabase(outcome: BusinessOutcome) {
 export async function syncXpEventToSupabase(event: XpEvent) {
   if (!supabase || !isSupabaseConfigured) return;
   try {
-    await supabase.from('xp_ledger').insert({
+    const { error } = await supabase.from('xp_ledger').insert({
       id: event.id,
       event_type: event.eventType,
       xp_amount: event.xpAmount,
       description: event.description,
       created_at: event.createdAt,
     });
+    if (!error) {
+      broadcastDataChange('xp_ledger');
+    }
   } catch (err) {
     console.warn('Network sync XP error:', err);
   }
@@ -218,23 +278,35 @@ export async function syncXpEventToSupabase(event: XpEvent) {
 export function subscribeToRealtimeChanges(onRefresh: () => void) {
   if (!supabase || !isSupabaseConfigured) return () => {};
 
-  const channel = supabase
-    .channel('falcon-hq-realtime')
+  const channel = getSharedChannel();
+  if (!channel) return () => {};
+
+  // 1. Broadcast listener (Instant peer-to-peer notification between Ahmed & Moaz)
+  channel.on('broadcast', { event: 'falcon_data_change' }, (eventPayload: any) => {
+    console.log('[Realtime] Peer updated:', eventPayload?.payload?.entity);
+    onRefresh();
+  });
+
+  // 2. Postgres CDC listener (Postgres database-level changes)
+  channel
     .on('postgres_changes', { event: '*', schema: 'public', table: 'ideas' }, () => {
+      console.log('[Realtime] Postgres change on ideas');
       onRefresh();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'scripts' }, () => {
+      console.log('[Realtime] Postgres change on scripts');
       onRefresh();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'business_outcomes' }, () => {
+      console.log('[Realtime] Postgres change on business_outcomes');
       onRefresh();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'xp_ledger' }, () => {
+      console.log('[Realtime] Postgres change on xp_ledger');
       onRefresh();
-    })
-    .subscribe();
+    });
 
   return () => {
-    supabase?.removeChannel(channel);
+    // Channel is managed at module level
   };
 }

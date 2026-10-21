@@ -54,7 +54,7 @@ export default function FalconHQApp() {
 
   // Hydrate from LocalStorage first, then fetch live from Supabase & subscribe to Realtime
   useEffect(() => {
-    // 1. Instant local render
+    // 1. Instant local render from buffer
     setIdeas(getStoredIdeas());
     const initialScripts = getStoredScripts();
     setScripts(initialScripts);
@@ -62,59 +62,66 @@ export default function FalconHQApp() {
     setOutcomes(getStoredOutcomes());
     setXpEvents(getStoredXpEvents());
 
-    // 2. Fetch live data from Supabase
-    fetchRemoteData().then((remote) => {
-      if (remote.ideas && remote.ideas.length > 0) {
-        setIdeas(remote.ideas);
-        saveStoredIdeas(remote.ideas);
-        if (remote.scripts && remote.scripts.length > 0) {
-          setScripts(remote.scripts);
-          saveStoredScripts(remote.scripts);
-          setActiveScript(remote.scripts[0]);
-        }
-        if (remote.outcomes && remote.outcomes.length > 0) {
-          setOutcomes(remote.outcomes);
-          saveStoredOutcomes(remote.outcomes);
-        }
-        if (remote.xpEvents && remote.xpEvents.length > 0) {
-          setXpEvents(remote.xpEvents);
-        }
-      } else if (isSupabaseConfigured) {
-        // Supabase is empty: push initial seed so both partners see it
-        const seedIdeas = getStoredIdeas();
-        const seedScripts = getStoredScripts();
-        const seedOutcomes = getStoredOutcomes();
-        const seedXp = getStoredXpEvents();
-        seedIdeas.forEach((i) => syncIdeaToSupabase(i));
-        seedScripts.forEach((s) => syncScriptToSupabase(s));
-        seedOutcomes.forEach((o) => syncOutcomeToSupabase(o));
-        seedXp.forEach((x) => syncXpEventToSupabase(x));
-      }
-    });
-
-    // 3. Realtime Listener: updates immediately whenever Ahmed or Moaz saves anything
-    const unsubscribe = subscribeToRealtimeChanges(() => {
-      fetchRemoteData().then((remote) => {
-        if (remote.ideas) {
+    // 2. Dedicated refresh routine from Supabase
+    const refreshData = async () => {
+      try {
+        const remote = await fetchRemoteData();
+        if (remote.ideas !== null) {
           setIdeas(remote.ideas);
           saveStoredIdeas(remote.ideas);
         }
-        if (remote.scripts) {
+        if (remote.scripts !== null) {
           setScripts(remote.scripts);
           saveStoredScripts(remote.scripts);
+          setActiveScript((prev) => {
+            if (!prev && remote.scripts && remote.scripts.length > 0) return remote.scripts[0];
+            if (prev && remote.scripts) {
+              const updated = remote.scripts.find((s) => s.id === prev.id);
+              return updated || remote.scripts[0] || null;
+            }
+            return prev;
+          });
         }
-        if (remote.outcomes) {
+        if (remote.outcomes !== null) {
           setOutcomes(remote.outcomes);
           saveStoredOutcomes(remote.outcomes);
         }
-        if (remote.xpEvents) {
+        if (remote.xpEvents !== null) {
           setXpEvents(remote.xpEvents);
         }
-      });
+      } catch (err) {
+        console.warn('Sync refresh error:', err);
+      }
+    };
+
+    // Initial fetch from Supabase
+    refreshData();
+
+    // Realtime Listener: updates immediately whenever Ahmed or Moaz saves anything
+    const unsubscribe = subscribeToRealtimeChanges(() => {
+      refreshData();
     });
+
+    // Background Heartbeat Polling (every 6 seconds) for rock-solid sync across mobile & desktop
+    const pollInterval = setInterval(() => {
+      refreshData();
+    }, 6000);
+
+    // Instant sync when switching back to tab or unlocking mobile phone
+    const handleFocusSync = () => {
+      if (document.visibilityState === 'visible') {
+        refreshData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocusSync);
+    document.addEventListener('visibilitychange', handleFocusSync);
 
     return () => {
       unsubscribe();
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', handleFocusSync);
+      document.removeEventListener('visibilitychange', handleFocusSync);
     };
   }, []);
 

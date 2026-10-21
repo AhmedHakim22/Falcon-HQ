@@ -46,8 +46,12 @@ export function Navbar({
               onClick={() => setActiveTab('home')}
               className="flex items-center gap-2.5 cursor-pointer group"
             >
-              <div className="w-10 h-10 rounded-2xl bg-falcon-600 flex items-center justify-center text-white shadow-md shadow-falcon-600/20 group-hover:bg-falcon-700 transition-colors">
-                <span className="font-bold text-lg tracking-wider">F</span>
+              <div className="w-11 h-11 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <img 
+                  src="/falcon-logo.png" 
+                  alt="Falcon Brand Logo" 
+                  className="w-full h-full object-contain drop-shadow-sm" 
+                />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
@@ -106,6 +110,12 @@ export function Navbar({
                 <span>Lv.{currentLevel}</span>
                 <span className="text-[11px] text-charcoal-muted hidden lg:inline">({totalXp} XP)</span>
               </div>
+            </div>
+
+            {/* Realtime Live Sync Status Badge */}
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50/80 border border-emerald-200/60 text-emerald-700 text-[11px] font-medium" title="متصل بسوبابيز ومزامن لحظياً بين أحمد ومعاذ">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>مُتزامن لحظياً</span>
             </div>
 
             {/* Active User Switcher (أحمد / معاذ) */}
