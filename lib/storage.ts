@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   OUTCOMES: 'falcon_outcomes_v4',
   XP_EVENTS: 'falcon_xp_events_v4',
   STREAK: 'falcon_streak_v4',
+  ACTIVE_USER: 'falcon_active_user_v1',
 };
 
 // Valid UUIDs for database compatibility
@@ -260,4 +261,23 @@ export function addXpEvent(event: Omit<XpEvent, 'id' | 'createdAt'>): XpEvent {
     localStorage.setItem(STORAGE_KEYS.XP_EVENTS, JSON.stringify(updated));
   }
   return newEvent;
+}
+
+export function getStoredActiveUser(): string {
+  if (typeof window === 'undefined') return 'أحمد';
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.ACTIVE_USER);
+    return raw && (raw === 'أحمد' || raw === 'معاذ') ? raw : 'أحمد';
+  } catch {
+    return 'أحمد';
+  }
+}
+
+export function saveStoredActiveUser(user: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, user);
+  } catch (err) {
+    console.error('Failed to save active user:', err);
+  }
 }

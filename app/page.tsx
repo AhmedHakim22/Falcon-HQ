@@ -18,6 +18,8 @@ import {
   saveStoredOutcomes, 
   getStoredXpEvents, 
   addXpEvent,
+  getStoredActiveUser,
+  saveStoredActiveUser,
   INITIAL_TEAM_QUESTS 
 } from '@/lib/storage';
 import { 
@@ -61,6 +63,10 @@ export default function FalconHQApp() {
     if (initialScripts.length > 0) setActiveScript(initialScripts[0]);
     setOutcomes(getStoredOutcomes());
     setXpEvents(getStoredXpEvents());
+    
+    // Restore preferred user persona (أحمد / معاذ)
+    const savedUser = getStoredActiveUser();
+    if (savedUser) setCurrentUser(savedUser);
 
     // 2. Dedicated refresh routine from Supabase
     const refreshData = async () => {
@@ -309,6 +315,12 @@ export default function FalconHQApp() {
     syncXpEventToSupabase(ev);
   };
 
+  // Handle User Change (Persisted in LocalStorage)
+  const handleUserChange = (user: string) => {
+    setCurrentUser(user);
+    saveStoredActiveUser(user);
+  };
+
   return (
     <div className="min-h-screen bg-sand-100 flex flex-col pb-24 md:pb-12">
       
@@ -317,7 +329,7 @@ export default function FalconHQApp() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         currentUser={currentUser}
-        setCurrentUser={setCurrentUser}
+        setCurrentUser={handleUserChange}
         totalXp={totalXp}
         streakDays={streakDays}
         onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
