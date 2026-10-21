@@ -15,32 +15,14 @@ export function generateUUID(): string {
 }
 
 // -----------------------------------------------------------------------------
-// REALTIME BROADCAST CHANNEL (Zero-config instant peer-to-peer sync)
+// REALTIME CHANNEL & BROADCAST (Zero-config instant peer-to-peer sync)
 // -----------------------------------------------------------------------------
 let activeChannel: any = null;
 
-function getSharedChannel() {
-  if (!supabase || !isSupabaseConfigured) return null;
-  if (!activeChannel) {
-    activeChannel = supabase.channel('falcon-hq-realtime-room', {
-      config: {
-        broadcast: { self: false },
-      },
-    });
-    activeChannel.subscribe((status: string) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('[Supabase Realtime] Connected to live sync channel');
-      }
-    });
-  }
-  return activeChannel;
-}
-
 export function broadcastDataChange(entity: string) {
   try {
-    const channel = getSharedChannel();
-    if (channel) {
-      channel.send({
+    if (activeChannel) {
+      activeChannel.send({
         type: 'broadcast',
         event: 'falcon_data_change',
         payload: { entity, timestamp: Date.now() },
@@ -278,35 +260,68 @@ export async function syncXpEventToSupabase(event: XpEvent) {
 export function subscribeToRealtimeChanges(onRefresh: () => void) {
   if (!supabase || !isSupabaseConfigured) return () => {};
 
-  const channel = getSharedChannel();
-  if (!channel) return () => {};
+  try {
+    if (activeChannel && supabase) {
+      try {
+        supabase.removeChannel(activeChannel);
+      } catch (e) {
+        // ignore
+      }
+      activeChannel = null;
+    }
 
-  // 1. Broadcast listener (Instant peer-to-peer notification between Ahmed & Moaz)
-  channel.on('broadcast', { event: 'falcon_data_change' }, (eventPayload: any) => {
-    console.log('[Realtime] Peer updated:', eventPayload?.payload?.entity);
-    onRefresh();
-  });
+    const channel = supabase.channel('falcon-hq-sync-v1', {
+      config: {
+        broadcast: { self: false },
+      },
+    });
 
-  // 2. Postgres CDC listener (Postgres database-level changes)
-  channel
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'ideas' }, () => {
-      console.log('[Realtime] Postgres change on ideas');
-      onRefresh();
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'scripts' }, () => {
-      console.log('[Realtime] Postgres change on scripts');
-      onRefresh();
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'business_outcomes' }, () => {
-      console.log('[Realtime] Postgres change on business_outcomes');
-      onRefresh();
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'xp_ledger' }, () => {
-      console.log('[Realtime] Postgres change on xp_ledger');
+    // 1. Attach broadcast listener BEFORE subscribe()
+    channel.on('broadcast', { event: 'falcon_data_change' }, (eventPayload: any) => {
+      console.log('[Realtime] Peer updated:', eventPayload?.payload?.entity);
       onRefresh();
     });
 
-  return () => {
-    // Channel is managed at module level
-  };
+    // 2. Attach Postgres CDC listeners BEFORE subscribe()
+    channel
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ideas' }, () => {
+        console.log('[Realtime] Postgres change on ideas');
+        onRefresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scripts' }, () => {
+        console.log('[Realtime] Postgres change on scripts');
+        onRefresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'business_outcomes' }, () => {
+        console.log('[Realtime] Postgres change on business_outcomes');
+        onRefresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'xp_ledger' }, () => {
+        console.log('[Realtime] Postgres change on xp_ledger');
+        onRefresh();
+      });
+
+    // 3. ONLY call subscribe() AFTER all handlers are attached!
+    channel.subscribe((status: string) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('[Supabase Realtime] Connected to live sync channel');
+      }
+    });
+
+    activeChannel = channel;
+
+    return () => {
+      try {
+        if (activeChannel && supabase) {
+          supabase.removeChannel(activeChannel);
+          activeChannel = null;
+        }
+      } catch (e) {
+        // Safe cleanup
+      }
+    };
+  } catch (err) {
+    console.error('[Supabase Realtime] Setup error:', err);
+    return () => {};
+  }
 }
