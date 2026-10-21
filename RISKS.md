@@ -1,0 +1,9 @@
+# Risk Register (RISKS.md)
+
+| ID | Risk Description | Severity | Likelihood | Impact Area | Mitigation Strategy |
+|---|---|---|---|---|---|
+| **RSK-001** | **Over-Engineering UX (Rebuilding Notion):** Creating nested pages, infinite databases, and complex views makes the app heavier than Notion, causing abandonment. | High | High | Product / Adoption | Enforce strict limit on views: Single-tap Quick Capture, structured card views, single-purpose Script Studio. |
+| **RSK-002** | **Legal & License Contamination:** Inadvertent incorporation of AGPL-3.0 or GPL codebases forcing full source disclosure or cloud compliance burdens. | High | Medium | Legal / Architecture | Reject AGPL-3.0 forks (Plane, AppFlowy); select purely MIT, Apache 2.0, or ISC components for composition. |
+| **RSK-003** | **Premature Realtime Sync Complexity:** Implementing complex distributed CRDTs (e.g. Yjs/Automerge with multi-server WebSocket topologies) for a 2-person team drains engineering velocity and introduces synchronization bugs. | Medium | High | Engineering | Rely on optimistic state updates with last-write-wins at document/field level or Supabase Realtime broadcast with simple field locking. |
+| **RSK-004** | **Gamification Gaming / Fatigue:** Rewarding shallow activity (dumping empty ideas for XP) creates database noise, while rigid streaks cause psychological pressure during rest days. | Medium | Medium | Culture / Usability | XP awarded only for *qualified* milestones (e.g. reviewed ideas, executed scripts). Streaks are non-punitive and optional. |
+| **RSK-005** | **Offline Data Loss on Mobile:** Founder captures ideas in Egyptian transit with unstable mobile connectivity; unhandled network drops result in lost scripts. | High | Medium | Reliability | Implement local cache (IndexedDB / LocalStorage) with automatic background synchronization when online. |
