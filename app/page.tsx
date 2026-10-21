@@ -161,6 +161,7 @@ export default function FalconHQApp() {
   const handleSaveScript = (updatedScript: Script) => {
     const updatedScripts = scripts.map((s) => (s.id === updatedScript.id ? updatedScript : s));
     setScripts(updatedScripts);
+    setActiveScript(updatedScript);
     saveStoredScripts(updatedScripts);
     syncScriptToSupabase(updatedScript);
   };

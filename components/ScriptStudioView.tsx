@@ -52,7 +52,7 @@ export function ScriptStudioView({
       setActiveFramework(scripts[0].framework);
       setOpenLoopsLevel(scripts[0].openLoopsLevel);
     }
-  }, [activeScript, scripts]);
+  }, [activeScript?.id]);
 
   if (!currentScript) {
     return (
@@ -86,12 +86,12 @@ export function ScriptStudioView({
   };
 
   const handleSwitchFramework = (newFramework: ScriptFramework) => {
-    if (newFramework === currentScript.framework) return;
+    if (!currentScript || newFramework === currentScript.framework) return;
     const newSections = getInitialSectionsForFramework(newFramework);
     
     // Preserve existing hook / body / cta content if available
-    const existingAttention = currentScript.sections.find((s) => s.key === 'attention' || s.key === 'hook' || s.key === 'problem')?.content || '';
-    const existingCta = currentScript.sections.find((s) => s.key === 'action' || s.key === 'cta' || s.key === 'resolution' || s.key === 'response')?.content || '';
+    const existingAttention = currentScript.sections?.find((s) => s.key === 'attention' || s.key === 'hook' || s.key === 'problem')?.content || '';
+    const existingCta = currentScript.sections?.find((s) => s.key === 'action' || s.key === 'cta' || s.key === 'resolution' || s.key === 'response')?.content || '';
 
     if (newSections[0] && existingAttention) newSections[0].content = existingAttention;
     if (newSections[newSections.length - 1] && existingCta) newSections[newSections.length - 1].content = existingCta;
@@ -108,8 +108,9 @@ export function ScriptStudioView({
   };
 
   const handleToggleOpenLoops = (level: OpenLoopsLevel) => {
+    if (!currentScript) return;
     setOpenLoopsLevel(level);
-    let openLoops = currentScript.openLoops;
+    let openLoops = currentScript.openLoops || [];
     if (level !== 'off' && openLoops.length === 0) {
       openLoops = [
         {
@@ -130,7 +131,8 @@ export function ScriptStudioView({
   };
 
   const handleUpdateOpenLoop = (loopId: string, hook: string, payoff: string) => {
-    const updatedLoops = currentScript.openLoops.map((l) =>
+    if (!currentScript) return;
+    const updatedLoops = (currentScript.openLoops || []).map((l) =>
       l.id === loopId ? { ...l, loopHook: hook, loopPayoff: payoff } : l
     );
     const updated = {
@@ -246,19 +248,23 @@ export function ScriptStudioView({
             مدرسة الإقناع التسويقي (Framework)
           </label>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-            {(['AIDA', 'PASTOR', 'StoryArc', 'THEDOC', 'Freeform'] as ScriptFramework[]).map((fw) => (
-              <button
-                key={fw}
-                onClick={() => handleSwitchFramework(fw)}
-                className={`py-2 px-2 rounded-xl text-xs font-semibold text-center transition-all ${
-                  activeFramework === fw
-                    ? 'bg-falcon-600 text-white shadow-xs font-bold'
-                    : 'bg-sand-50 text-charcoal-muted hover:bg-sand-200'
-                }`}
-              >
-                {fw}
-              </button>
-            ))}
+            {(['AIDA', 'PASTOR', 'StoryArc', 'THEDOC', 'Freeform'] as ScriptFramework[]).map((fw) => {
+              const isSelected = activeFramework === fw || currentScript.framework === fw;
+              return (
+                <button
+                  type="button"
+                  key={fw}
+                  onClick={() => handleSwitchFramework(fw)}
+                  className={`py-2 px-2 rounded-xl text-xs font-semibold text-center transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-falcon-600 text-white shadow-xs font-bold'
+                      : 'bg-sand-50 text-charcoal-muted hover:bg-sand-200'
+                  }`}
+                >
+                  {fw}
+                </button>
+              );
+            })}
           </div>
           <p className="text-[11px] text-charcoal-muted mt-2">
             💡 {FRAMEWORKS[activeFramework]?.tagline}
@@ -276,19 +282,23 @@ export function ScriptStudioView({
               { id: 'off', label: 'مغلق (Off)' },
               { id: 'light', label: 'خفيف (حلقة واحدة)' },
               { id: 'full', label: 'كامل (3 حلقات)' },
-            ].map((lvl) => (
-              <button
-                key={lvl.id}
-                onClick={() => handleToggleOpenLoops(lvl.id as any)}
-                className={`py-2 px-2 rounded-xl text-xs font-semibold text-center transition-all ${
-                  openLoopsLevel === lvl.id
-                    ? 'bg-falcon-600 text-white shadow-xs font-bold'
-                    : 'bg-sand-50 text-charcoal-muted hover:bg-sand-200'
-                }`}
-              >
-                {lvl.label}
-              </button>
-            ))}
+            ].map((lvl) => {
+              const isSelected = openLoopsLevel === lvl.id || currentScript.openLoopsLevel === lvl.id;
+              return (
+                <button
+                  type="button"
+                  key={lvl.id}
+                  onClick={() => handleToggleOpenLoops(lvl.id as any)}
+                  className={`py-2 px-2 rounded-xl text-xs font-semibold text-center transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-falcon-600 text-white shadow-xs font-bold'
+                      : 'bg-sand-50 text-charcoal-muted hover:bg-sand-200'
+                  }`}
+                >
+                  {lvl.label}
+                </button>
+              );
+            })}
           </div>
           <p className="text-[11px] text-charcoal-muted mt-2">
             فتح لغز في بداية الفيديو وإجابته قبل الـ CTA يضاعف متوسط وقت المشاهدة.
@@ -301,7 +311,7 @@ export function ScriptStudioView({
       <div className="space-y-4">
         
         {/* Open Loop Card (if active) */}
-        {openLoopsLevel !== 'off' && currentScript.openLoops.length > 0 && (
+        {openLoopsLevel !== 'off' && (currentScript.openLoops?.length ?? 0) > 0 && (
           <div className="bento-card p-5 sm:p-6 border-2 border-dashed border-falcon-500/40 bg-gradient-to-br from-white to-falcon-50/20">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-7 h-7 rounded-xl bg-falcon-50 text-falcon-600 flex items-center justify-center font-bold text-xs">
