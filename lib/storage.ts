@@ -2,11 +2,11 @@ import { Idea, Script, BusinessOutcome, XpEvent, TeamQuest } from './types';
 import { getInitialSectionsForFramework } from './frameworks';
 
 const STORAGE_KEYS = {
-  IDEAS: 'falcon_ideas_v2',
-  SCRIPTS: 'falcon_scripts_v2',
-  OUTCOMES: 'falcon_outcomes_v2',
-  XP_EVENTS: 'falcon_xp_events_v2',
-  STREAK: 'falcon_streak_v2',
+  IDEAS: 'falcon_ideas_v3',
+  SCRIPTS: 'falcon_scripts_v3',
+  OUTCOMES: 'falcon_outcomes_v3',
+  XP_EVENTS: 'falcon_xp_events_v3',
+  STREAK: 'falcon_streak_v3',
 };
 
 // Initial realistic seed data for Falcon
@@ -18,7 +18,7 @@ const INITIAL_IDEAS: Idea[] = [
     status: 'ready_to_film',
     sourceUrl: 'https://instagram.com/reel/example1',
     notes: 'ركز في أول ثانيتين على كفر مصفر شكله مقزز وبعدها وريه كفر فالكون الجديد بصوت كليك الحماية',
-    creatorName: 'أنا',
+    creatorName: 'أحمد',
     assigneeName: 'معاذ',
     goalFitScore: 5,
     customerValueScore: 5,
@@ -37,7 +37,7 @@ const INITIAL_IDEAS: Idea[] = [
     sourceUrl: 'https://tiktok.com/@example/video2',
     notes: 'فيديو تجربة عملية صادمة للشارع المصري لإثبات قوة الجراب الحقيقية',
     creatorName: 'معاذ',
-    assigneeName: 'أنا',
+    assigneeName: 'أحمد',
     goalFitScore: 4,
     customerValueScore: 4,
     reachScore: 5,
@@ -106,7 +106,7 @@ const INITIAL_SCRIPTS: Script[] = [
       },
     ],
     status: 'ready_to_film',
-    authorName: 'أنا',
+    authorName: 'أحمد',
     reviewerName: 'معاذ',
     estimatedDurationSeconds: 42,
     wordCount: 92,
