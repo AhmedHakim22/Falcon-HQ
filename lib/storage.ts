@@ -2,11 +2,11 @@ import { Idea, Script, BusinessOutcome, XpEvent, TeamQuest } from './types';
 import { getInitialSectionsForFramework } from './frameworks';
 
 const STORAGE_KEYS = {
-  IDEAS: 'falcon_ideas_v1',
-  SCRIPTS: 'falcon_scripts_v1',
-  OUTCOMES: 'falcon_outcomes_v1',
-  XP_EVENTS: 'falcon_xp_events_v1',
-  STREAK: 'falcon_streak_v1',
+  IDEAS: 'falcon_ideas_v2',
+  SCRIPTS: 'falcon_scripts_v2',
+  OUTCOMES: 'falcon_outcomes_v2',
+  XP_EVENTS: 'falcon_xp_events_v2',
+  STREAK: 'falcon_streak_v2',
 };
 
 // Initial realistic seed data for Falcon
@@ -18,8 +18,8 @@ const INITIAL_IDEAS: Idea[] = [
     status: 'ready_to_film',
     sourceUrl: 'https://instagram.com/reel/example1',
     notes: 'ركز في أول ثانيتين على كفر مصفر شكله مقزز وبعدها وريه كفر فالكون الجديد بصوت كليك الحماية',
-    creatorName: 'عمر',
-    assigneeName: 'سلمى',
+    creatorName: 'أنا',
+    assigneeName: 'معاذ',
     goalFitScore: 5,
     customerValueScore: 5,
     reachScore: 4,
@@ -36,8 +36,8 @@ const INITIAL_IDEAS: Idea[] = [
     status: 'scripting',
     sourceUrl: 'https://tiktok.com/@example/video2',
     notes: 'فيديو تجربة عملية صادمة للشارع المصري لإثبات قوة الجراب الحقيقية',
-    creatorName: 'عمر',
-    assigneeName: 'سلمى',
+    creatorName: 'معاذ',
+    assigneeName: 'أنا',
     goalFitScore: 4,
     customerValueScore: 4,
     reachScore: 5,
@@ -54,7 +54,7 @@ const INITIAL_IDEAS: Idea[] = [
     status: 'inbox',
     sourceUrl: '',
     notes: 'تريند هدايا التخرج المرتبطة بالأغاني والذكريات',
-    creatorName: 'سلمى',
+    creatorName: 'معاذ',
     // Deliberately unrated to test the "Not Rated" guardrail
     createdAt: new Date(Date.now() - 1 * 86400000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 86400000).toISOString(),
@@ -106,8 +106,8 @@ const INITIAL_SCRIPTS: Script[] = [
       },
     ],
     status: 'ready_to_film',
-    authorName: 'سلمى',
-    reviewerName: 'عمر',
+    authorName: 'أنا',
+    reviewerName: 'معاذ',
     estimatedDurationSeconds: 42,
     wordCount: 92,
     createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),

@@ -29,7 +29,7 @@ import { Plus } from 'lucide-react';
 
 export default function FalconHQApp() {
   const [activeTab, setActiveTab] = useState<'home' | 'ideas' | 'scripts' | 'results' | 'gamification'>('home');
-  const [currentUser, setCurrentUser] = useState<string>('عمر');
+  const [currentUser, setCurrentUser] = useState<string>('أنا');
   
   // App Data State
   const [ideas, setIdeas] = useState<Idea[]>([]);

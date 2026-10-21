@@ -115,7 +115,7 @@ export function GamificationView({
             </div>
 
             <h4 className="text-base font-bold text-charcoal">تجهيز 3 سكريبتات للتصوير</h4>
-            <p className="text-xs text-charcoal-muted mt-0.5">هدف مشترك لعمر وسلمى معاً (+50 XP للفريق)</p>
+            <p className="text-xs text-charcoal-muted mt-0.5">هدف مشترك بينك وبين معاذ معاً (+50 XP للفريق)</p>
           </div>
 
           <div className="mt-4">

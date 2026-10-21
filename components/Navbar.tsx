@@ -108,27 +108,27 @@ export function Navbar({
               </div>
             </div>
 
-            {/* Active User Switcher (Omar / Salma) */}
+            {/* Active User Switcher (أنا / معاذ) */}
             <div className="hidden sm:flex items-center bg-sand-200/70 p-1 rounded-2xl border border-sand-border text-xs">
               <button
-                onClick={() => setCurrentUser('عمر')}
+                onClick={() => setCurrentUser('أنا')}
                 className={`px-2.5 py-1 rounded-xl transition-all font-medium ${
-                  currentUser === 'عمر'
+                  currentUser === 'أنا'
                     ? 'bg-white text-charcoal shadow-xs font-bold'
                     : 'text-charcoal-muted hover:text-charcoal'
                 }`}
               >
-                عمر (المؤسس)
+                أنا (المؤسس & كاتب)
               </button>
               <button
-                onClick={() => setCurrentUser('سلمى')}
+                onClick={() => setCurrentUser('معاذ')}
                 className={`px-2.5 py-1 rounded-xl transition-all font-medium ${
-                  currentUser === 'سلمى'
+                  currentUser === 'معاذ'
                     ? 'bg-white text-charcoal shadow-xs font-bold'
                     : 'text-charcoal-muted hover:text-charcoal'
                 }`}
               >
-                سلمى (الكاتبة)
+                معاذ (شريك & تصوير)
               </button>
             </div>
 

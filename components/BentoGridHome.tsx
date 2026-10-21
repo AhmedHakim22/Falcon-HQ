@@ -257,7 +257,7 @@ export function BentoGridHome({
 
             <h3 className="text-base font-bold text-charcoal">مهمة الفريق المشتركة</h3>
             <p className="text-xs text-charcoal-muted mt-1">
-              هدف مشترك بين عمر وسلمى بدون ضغط نفسي لتعزيز النشر المنتظم.
+              هدف مشترك بينك وبين معاذ بدون ضغط نفسي لتعزيز النشر والتصوير المنتظم.
             </p>
 
             <div className="mt-4 space-y-3">
