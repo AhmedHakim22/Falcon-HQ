@@ -1,28 +1,28 @@
 # Roadmap (ROADMAP.md)
 
-## Milestone 0: Research, Specification & Architecture (Current Phase)
+## Milestone 0: Research, Specification & Architecture
 - [x] Stage 0: Project Intake & Socratic Clarification
 - [x] Stage 1: Problem Discovery & User Journeys
 - [x] Stage 2: Deep GitHub Research & Reuse Strategy
-- [ ] Stage 3: Product Innovation Backlog (ICE Scoring)
-- [ ] Stage 4: Expert Committees & Red Team Review
-- [ ] Stage 5: Identity & Tone of Voice
-- [ ] Stage 6: Product Specification (PRD) — **Approval Gate**
-- [ ] Stage 7: Technical Architecture, ADRs & Database Schema
-- [ ] Stage 8: UX Engineering, Design Tokens & Component Specs
+- [x] Stage 3: Product Innovation Backlog (ICE Scoring)
+- [x] Stage 4: Expert Committees & Red Team Review
+- [x] Stage 5: Identity & Tone of Voice
+- [x] Stage 6: Product Specification (PRD) — **Approved by User**
 
-## Milestone 1: Core Foundation & MVP Development (Post-Approval)
-- [ ] Batch 1: Project Setup, Tooling & Design System Foundation
-- [ ] Batch 2: Authentication, Workspace & Role Enforcement (Owner/Collaborator)
-- [ ] Batch 3: Idea Bank & Mobile Quick Capture
-- [ ] Batch 4: Idea Priority Engine (Automated & Manual Scoring)
-- [ ] Batch 5: Script Studio (AIDA, PASTOR, Story Arc, THEDOC + Open Loops)
-- [ ] Batch 6: Collaboration, Comments & Review Workflows
-- [ ] Batch 7: Balanced Gamification Core & XP Ledger
-- [ ] Batch 8: Business Results & Qualitative Attribution
+## Milestone 1: Core Foundation & MVP Development
+- [x] Stage 7: Technical Architecture, ADRs & PostgreSQL Schema (`architecture/`)
+- [x] Stage 8: UX Engineering, Design Tokens & Bento Component Specs (`design/`)
+- [x] Batch 1: Next.js 15 + TypeScript + Tailwind CSS Setup
+- [x] Batch 2: Falcon Bento Grid Home Layout
+- [x] Batch 3: Idea Bank & Mobile Quick Capture FAB (+5 XP)
+- [x] Batch 4: Idea Priority Engine with 4-Factor Weighted Calculation & Not-Rated Guardrail
+- [x] Batch 5: Script Studio (AIDA, PASTOR, Story Arc, THEDOC, Freeform + Open Loops Engine)
+- [x] Batch 6: Async Review & Handoff Workflow with Speaking Time Counter
+- [x] Batch 7: Business Outcomes & Attribution Ledger (Orders & Revenue Tracking)
+- [x] Batch 8: Balanced Gamification Core (XP Ledger, Levels, Grace-Day Streaks, Team Quests)
 
-## Milestone 2: Hardening & Verification
-- [ ] Stage 10: Comprehensive Quality Verification (Unit, Integration, E2E, Mobile RTL)
-- [ ] Stage 11: Security Audit, RLS Verification & Release Gate
-- [ ] Stage 12: Production Launch on Supabase & Vercel
-- [ ] Stage 13: Operational Monitoring & Feedback Loops
+## Milestone 2: Hardening & Production Release
+- [x] Stage 10: Comprehensive Quality Verification (`quality/verification-report.md`) — 100% Passed
+- [x] Stage 11: Security Audit & Release Gate (`security/security-audit.md`) — VERDICT: PASS
+- [ ] Stage 12: Production Cloud Linking (Connecting User Supabase & Vercel)
+- [ ] Stage 13: Operational Monitoring & Feedback Loops (`growth/product-learning-log.md`)
