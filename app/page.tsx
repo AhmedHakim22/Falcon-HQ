@@ -20,6 +20,8 @@ import {
   addXpEvent,
   INITIAL_TEAM_QUESTS 
 } from '@/lib/storage';
+import { syncIdeaToSupabase, syncScriptToSupabase, syncOutcomeToSupabase } from '@/lib/supabaseSync';
+import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { Idea, Script, BusinessOutcome, XpEvent, IdeaStatus, ScriptStatus } from '@/lib/types';
 import { calculatePriorityScore } from '@/lib/priority';
 import { getInitialSectionsForFramework } from '@/lib/frameworks';
@@ -72,6 +74,7 @@ export default function FalconHQApp() {
     const updatedIdeas = [newIdea, ...ideas];
     setIdeas(updatedIdeas);
     saveStoredIdeas(updatedIdeas);
+    syncIdeaToSupabase(newIdea);
 
     // Award XP
     const event = addXpEvent({
@@ -159,6 +162,7 @@ export default function FalconHQApp() {
     const updatedScripts = scripts.map((s) => (s.id === updatedScript.id ? updatedScript : s));
     setScripts(updatedScripts);
     saveStoredScripts(updatedScripts);
+    syncScriptToSupabase(updatedScript);
   };
 
   // Handlers: Update Script Status
@@ -206,6 +210,7 @@ export default function FalconHQApp() {
     const updated = [newOutcome, ...outcomes];
     setOutcomes(updated);
     saveStoredOutcomes(updated);
+    syncOutcomeToSupabase(newOutcome);
 
     const ev = addXpEvent({
       eventType: 'outcome_recorded',
