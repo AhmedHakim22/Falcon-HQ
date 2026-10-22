@@ -80,6 +80,7 @@ import {
 } from '@/lib/types';
 import { calculatePriorityScore } from '@/lib/priority';
 import { getInitialSectionsForFramework } from '@/lib/frameworks';
+import { getWeekKey } from '@/lib/taskWeekUtils';
 import { Plus } from 'lucide-react';
 
 export default function FalconHQApp() {
@@ -495,11 +496,13 @@ export default function FalconHQApp() {
     saveStoredScripts(updated);
   };
 
-  // Handlers: Operational Tasks (Points 3, 11, 14)
+  // Handlers: Operational Tasks (Points 3, 11, 14 & Scheduling/Rollover)
   const handleAddTask = (taskData: Omit<OperationalTask, 'id' | 'createdAt'>) => {
+    const currentWeek = getWeekKey();
     const newTask: OperationalTask = {
       ...taskData,
       id: generateUUID(),
+      targetWeek: taskData.targetWeek || currentWeek,
       createdAt: new Date().toISOString(),
     };
     const updated = [newTask, ...tasks];
@@ -510,11 +513,16 @@ export default function FalconHQApp() {
 
   const handleUpdateTaskStatus = (taskId: string, status: TaskStatus) => {
     const target = tasks.find((t) => t.id === taskId);
+    const currentWeek = getWeekKey();
+    const taskWeek = target?.targetWeek || (target?.createdAt ? getWeekKey(new Date(target.createdAt)) : currentWeek);
+    const isDelayed = Boolean(target?.isRolledOver || taskWeek < currentWeek);
+
     const updated = tasks.map((t) => {
       if (t.id === taskId) {
         return {
           ...t,
           status,
+          isDelayed: status === 'done' ? isDelayed : t.isDelayed,
           completedAt: status === 'done' ? new Date().toISOString() : undefined,
         };
       }
@@ -525,10 +533,17 @@ export default function FalconHQApp() {
     syncTasksToSupabase(updated);
 
     if (status === 'done' && target && target.status !== 'done') {
+      const baseXp = target.xpReward || 15;
+      // 50% XP penalty for overdue tasks completed past their scheduled week
+      const finalXp = isDelayed ? Math.max(5, Math.round(baseXp * 0.5)) : baseXp;
+      const description = isDelayed
+        ? `إتمام مهمة متأخرة من أسبوع سابق (خصم 50% تأخير: +${finalXp} XP): ${target.title}`
+        : `إتمام مهمة تشغيلية (+${finalXp} XP): ${target.title}`;
+
       const ev = addXpEvent({
         eventType: 'task_completed',
-        xpAmount: target.xpReward || 15,
-        description: `إتمام مهمة تشغيلية: ${target.title}`,
+        xpAmount: finalXp,
+        description,
       });
       setXpEvents((prev) => [ev, ...prev]);
       syncXpEventToSupabase(ev);

@@ -150,6 +150,12 @@ export interface OperationalTask {
   priority: 'high' | 'medium' | 'low';
   xpReward: number;
   notes?: string;
+  targetWeek?: string; // Week start date key e.g. "2026-10-17"
+  scheduledDate?: string; // Specific date YYYY-MM-DD
+  scheduledDay?: string; // e.g. "السبت", "الأحد", etc.
+  isRolledOver?: boolean; // Automatically rolled over from past unfinished week
+  originalWeek?: string; // The week in which the task was initially scheduled
+  isDelayed?: boolean; // Finished after scheduled week
   isDeleted?: boolean;
   deletedAt?: string;
   createdAt: string;
