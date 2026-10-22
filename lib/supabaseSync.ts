@@ -1,5 +1,18 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { Idea, Script, BusinessOutcome, XpEvent, resolveIdeaType, resolveDbCategory } from './types';
+import { 
+  Idea, 
+  Script, 
+  BusinessOutcome, 
+  XpEvent, 
+  ChatThought, 
+  OperationalTask, 
+  resolveIdeaType, 
+  resolveDbCategory 
+} from './types';
+
+// System storage rows in scripts table for zero-latency resilient sync
+export const SYSTEM_CHAT_ID = '00000000-0000-4000-8000-000000000001';
+export const SYSTEM_TASKS_ID = '00000000-0000-4000-8000-000000000002';
 
 // Helper to ensure valid UUID v4
 export function generateUUID(): string {
@@ -33,6 +46,31 @@ export function broadcastDataChange(entity: string) {
   }
 }
 
+export function broadcastChatMessage(thought: ChatThought) {
+  try {
+    if (activeChannel) {
+      // Realtime payload safeguard:
+      // If voice base64 string is large (> 100KB), omit audio data to prevent websocket frame drop
+      const isLargeAudio = Boolean(thought.audioBase64 && thought.audioBase64.length > 100000);
+      const broadcastThought = isLargeAudio 
+        ? { ...thought, audioBase64: undefined }
+        : thought;
+
+      activeChannel.send({
+        type: 'broadcast',
+        event: 'falcon_chat_msg',
+        payload: {
+          thought: broadcastThought,
+          needsFetch: isLargeAudio,
+          timestamp: Date.now(),
+        },
+      });
+    }
+  } catch (err) {
+    console.warn('[Supabase Broadcast] Chat send warning:', err);
+  }
+}
+
 // -----------------------------------------------------------------------------
 // FETCH ALL DATA FROM SUPABASE (Independent resilient fetching)
 // -----------------------------------------------------------------------------
@@ -41,23 +79,29 @@ export async function fetchRemoteData(): Promise<{
   scripts: Script[] | null;
   outcomes: BusinessOutcome[] | null;
   xpEvents: XpEvent[] | null;
+  chatThoughts: ChatThought[] | null;
+  tasks: OperationalTask[] | null;
 }> {
   if (!supabase || !isSupabaseConfigured) {
-    return { ideas: null, scripts: null, outcomes: null, xpEvents: null };
+    return { ideas: null, scripts: null, outcomes: null, xpEvents: null, chatThoughts: null, tasks: null };
   }
 
   try {
-    const [ideasRes, scriptsRes, outcomesRes, xpRes] = await Promise.allSettled([
+    const [ideasRes, scriptsRes, outcomesRes, xpRes, chatRes, tasksRes] = await Promise.allSettled([
       supabase.from('ideas').select('*').eq('is_deleted', false).order('created_at', { ascending: false }),
       supabase.from('scripts').select('*').eq('is_deleted', false).order('created_at', { ascending: false }),
       supabase.from('business_outcomes').select('*').order('created_at', { ascending: false }),
       supabase.from('xp_ledger').select('*').order('created_at', { ascending: false }),
+      supabase.from('scripts').select('content_json').eq('id', SYSTEM_CHAT_ID).maybeSingle(),
+      supabase.from('scripts').select('content_json').eq('id', SYSTEM_TASKS_ID).maybeSingle(),
     ]);
 
     let ideas: Idea[] | null = null;
     let scripts: Script[] | null = null;
     let outcomes: BusinessOutcome[] | null = null;
     let xpEvents: XpEvent[] | null = null;
+    let chatThoughts: ChatThought[] | null = null;
+    let tasks: OperationalTask[] | null = null;
 
     if (ideasRes.status === 'fulfilled' && !ideasRes.value.error && ideasRes.value.data) {
       ideas = ideasRes.value.data.map((row: any) => ({
@@ -81,22 +125,24 @@ export async function fetchRemoteData(): Promise<{
     }
 
     if (scriptsRes.status === 'fulfilled' && !scriptsRes.value.error && scriptsRes.value.data) {
-      scripts = scriptsRes.value.data.map((row: any) => ({
-        id: row.id,
-        ideaId: row.idea_id || undefined,
-        title: row.title,
-        framework: row.framework,
-        openLoopsLevel: row.open_loops_level,
-        sections: row.content_json || [],
-        openLoops: row.open_loops_json || [],
-        status: row.status,
-        authorName: row.author_name || 'أحمد',
-        reviewerName: row.reviewer_name || undefined,
-        estimatedDurationSeconds: row.estimated_duration_seconds || 0,
-        wordCount: row.word_count || 0,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      }));
+      scripts = scriptsRes.value.data
+        .filter((row: any) => row.id !== SYSTEM_CHAT_ID && row.id !== SYSTEM_TASKS_ID && !row.title?.startsWith('__falcon_system_'))
+        .map((row: any) => ({
+          id: row.id,
+          ideaId: row.idea_id || undefined,
+          title: row.title,
+          framework: row.framework,
+          openLoopsLevel: row.open_loops_level,
+          sections: row.content_json || [],
+          openLoops: row.open_loops_json || [],
+          status: row.status,
+          authorName: row.author_name || 'أحمد',
+          reviewerName: row.reviewer_name || undefined,
+          estimatedDurationSeconds: row.estimated_duration_seconds || 0,
+          wordCount: row.word_count || 0,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        }));
     }
 
     if (outcomesRes.status === 'fulfilled' && !outcomesRes.value.error && outcomesRes.value.data) {
@@ -125,10 +171,24 @@ export async function fetchRemoteData(): Promise<{
       }));
     }
 
-    return { ideas, scripts, outcomes, xpEvents };
+    if (chatRes.status === 'fulfilled' && !chatRes.value.error && chatRes.value.data) {
+      const parsed = chatRes.value.data.content_json;
+      if (Array.isArray(parsed)) {
+        chatThoughts = parsed as ChatThought[];
+      }
+    }
+
+    if (tasksRes.status === 'fulfilled' && !tasksRes.value.error && tasksRes.value.data) {
+      const parsed = tasksRes.value.data.content_json;
+      if (Array.isArray(parsed)) {
+        tasks = parsed as OperationalTask[];
+      }
+    }
+
+    return { ideas, scripts, outcomes, xpEvents, chatThoughts, tasks };
   } catch (err) {
     console.error('Remote fetch error:', err);
-    return { ideas: null, scripts: null, outcomes: null, xpEvents: null };
+    return { ideas: null, scripts: null, outcomes: null, xpEvents: null, chatThoughts: null, tasks: null };
   }
 }
 
@@ -353,9 +413,67 @@ export async function clearAllXpEventsFromSupabase() {
 }
 
 // -----------------------------------------------------------------------------
+// CHAT & TASKS SYSTEM PERSISTENCE (Synced to Supabase system scripts)
+// -----------------------------------------------------------------------------
+export async function syncChatThoughtsToSupabase(thoughts: ChatThought[]) {
+  if (!supabase || !isSupabaseConfigured) return;
+  try {
+    const payload = {
+      id: SYSTEM_CHAT_ID,
+      title: '__falcon_system_chat__',
+      framework: 'AIDA',
+      open_loops_level: 'off',
+      content_json: thoughts,
+      open_loops_json: [],
+      status: 'writing',
+      author_name: 'system',
+      is_deleted: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('scripts').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.warn('Supabase sync chat warning:', error.message);
+    }
+  } catch (err) {
+    console.warn('Network sync chat paused:', err);
+  }
+}
+
+export async function syncTasksToSupabase(tasks: OperationalTask[]) {
+  if (!supabase || !isSupabaseConfigured) return;
+  try {
+    const payload = {
+      id: SYSTEM_TASKS_ID,
+      title: '__falcon_system_tasks__',
+      framework: 'AIDA',
+      open_loops_level: 'off',
+      content_json: tasks,
+      open_loops_json: [],
+      status: 'writing',
+      author_name: 'system',
+      is_deleted: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('scripts').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.warn('Supabase sync tasks warning:', error.message);
+    } else {
+      broadcastDataChange('tasks');
+    }
+  } catch (err) {
+    console.warn('Network sync tasks paused:', err);
+  }
+}
+
+// -----------------------------------------------------------------------------
 // REALTIME SUBSCRIPTION FOR INSTANT CROSS-DEVICE SYNC
 // -----------------------------------------------------------------------------
-export function subscribeToRealtimeChanges(onRefresh: () => void) {
+export function subscribeToRealtimeChanges(
+  onRefresh: () => void,
+  onNewChatMessage?: (thought: ChatThought, needsFetch?: boolean) => void
+) {
   if (!supabase || !isSupabaseConfigured) return () => {};
 
   try {
@@ -374,13 +492,25 @@ export function subscribeToRealtimeChanges(onRefresh: () => void) {
       },
     });
 
-    // 1. Attach broadcast listener BEFORE subscribe()
+    // 1. Attach general broadcast listener BEFORE subscribe()
     channel.on('broadcast', { event: 'falcon_data_change' }, (eventPayload: any) => {
       console.log('[Realtime] Peer updated:', eventPayload?.payload?.entity);
       onRefresh();
     });
 
-    // 2. Attach Postgres CDC listeners BEFORE subscribe()
+    // 2. Attach instant chat message broadcast listener
+    channel.on('broadcast', { event: 'falcon_chat_msg' }, (eventPayload: any) => {
+      console.log('[Realtime] Peer chat message received');
+      const thought = eventPayload?.payload?.thought;
+      const needsFetch = eventPayload?.payload?.needsFetch;
+      if (onNewChatMessage && thought) {
+        onNewChatMessage(thought, needsFetch);
+      } else {
+        onRefresh();
+      }
+    });
+
+    // 3. Attach Postgres CDC listeners BEFORE subscribe()
     channel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ideas' }, () => {
         console.log('[Realtime] Postgres change on ideas');
@@ -399,7 +529,7 @@ export function subscribeToRealtimeChanges(onRefresh: () => void) {
         onRefresh();
       });
 
-    // 3. ONLY call subscribe() AFTER all handlers are attached!
+    // 4. ONLY call subscribe() AFTER all handlers are attached!
     channel.subscribe((status: string) => {
       if (status === 'SUBSCRIBED') {
         console.log('[Supabase Realtime] Connected to live sync channel');

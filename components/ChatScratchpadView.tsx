@@ -41,6 +41,8 @@ export function ChatScratchpadView({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
+  const startTimeRef = useRef<number>(0);
+  const audioMimeTypeRef = useRef<string>('audio/webm');
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -53,36 +55,73 @@ export function ChatScratchpadView({
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      
+      // Detect best supported audio mimeType across iOS/Safari/Chrome
+      let selectedMime = 'audio/webm';
+      if (typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function') {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          selectedMime = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          selectedMime = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+          selectedMime = 'audio/aac';
+        }
+      }
+      audioMimeTypeRef.current = selectedMime;
+
+      const mediaRecorder = new MediaRecorder(
+        stream,
+        selectedMime ? { mimeType: selectedMime } : undefined
+      );
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
+
+      // Record exact start timestamp to prevent stale closure duration bug
+      const startTime = Date.now();
+      startTimeRef.current = startTime;
       setRecordingSeconds(0);
 
       timerRef.current = setInterval(() => {
-        setRecordingSeconds((prev) => prev + 1);
-      }, 1000);
+        const elapsed = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
+        setRecordingSeconds(elapsed);
+      }, 500);
 
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
       };
 
       mediaRecorder.onstop = () => {
-        clearInterval(timerRef.current);
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+
+        // Calculate exact elapsed seconds from true wall clock
+        const exactDuration = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
+        const mimeType = audioMimeTypeRef.current || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
-          onAddThought({
-            sender: currentUser as any,
-            audioBase64: reader.result as string,
-            audioDuration: recordingSeconds || 1,
-          });
+          const base64Audio = reader.result as string;
+          if (base64Audio) {
+            onAddThought({
+              sender: currentUser as any,
+              audioBase64: base64Audio,
+              audioDuration: exactDuration,
+            });
+          }
           setRecordingSeconds(0);
         };
+
+        // Stop all audio hardware tracks
         stream.getTracks().forEach((track) => track.stop());
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(250); // Emit chunks every 250ms for reliability
       setIsRecording(true);
     } catch (err) {
       console.warn('Microphone error:', err);
@@ -125,6 +164,18 @@ export function ChatScratchpadView({
     }
   };
 
+  // Format voice duration into elegant Arabic text
+  const formatDuration = (seconds?: number) => {
+    if (!seconds || seconds <= 0) return 'ملاحظة صوتية';
+    if (seconds === 1) return 'ثانية واحدة';
+    if (seconds === 2) return 'ثانيتان';
+    if (seconds >= 3 && seconds <= 10) return `${seconds} ثوانٍ`;
+    if (seconds < 60) return `${seconds} ثانية`;
+    const mins = Math.floor(seconds / 60);
+    const rem = seconds % 60;
+    return `${mins}:${rem < 10 ? '0' : ''}${rem} دقيقة`;
+  };
+
   return (
     <div className="max-w-4xl mx-auto h-[calc(100vh-140px)] flex flex-col bg-white dark:bg-stone-900 rounded-3xl border border-sand-border dark:border-stone-800 shadow-sm overflow-hidden animate-in fade-in duration-300">
       
@@ -153,9 +204,9 @@ export function ChatScratchpadView({
       </div>
 
       {/* Chat Messages Stream */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-sand-100/50 dark:bg-stone-950/40">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-sand-100/50 dark:bg-stone-950/40 flex flex-col">
         {thoughts.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-8">
+          <div className="h-full flex flex-col items-center justify-center text-center p-8 my-auto">
             <div className="w-14 h-14 rounded-3xl bg-sand-200 dark:bg-stone-800 flex items-center justify-center text-charcoal-muted mb-3">
               <Sparkles className="w-7 h-7 text-falcon-600" />
             </div>
@@ -173,7 +224,7 @@ export function ChatScratchpadView({
               <div
                 key={item.id}
                 className={`flex flex-col max-w-[85%] sm:max-w-[70%] ${
-                  isMe ? 'mr-auto items-end' : 'ml-auto items-start'
+                  isMe ? 'self-end items-end' : 'self-start items-start'
                 }`}
               >
                 {/* Sender Pill */}
@@ -221,7 +272,7 @@ export function ChatScratchpadView({
                           تسجيل صوتي
                         </p>
                         <p className={`text-[10px] ${isMe ? 'text-falcon-100' : 'text-charcoal-muted dark:text-stone-400'}`}>
-                          {item.audioDuration ? `${item.audioDuration} ثانية` : 'ملاحظة صوتية'}
+                          {formatDuration(item.audioDuration)}
                         </p>
                       </div>
                     </div>

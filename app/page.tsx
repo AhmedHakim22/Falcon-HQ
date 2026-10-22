@@ -56,6 +56,10 @@ import {
   purgeIdeaPermanentlyFromSupabase,
   deleteScriptFromSupabase,
   restoreScriptInSupabase,
+  syncChatThoughtsToSupabase,
+  syncTasksToSupabase,
+  broadcastChatMessage,
+  broadcastDataChange,
   subscribeToRealtimeChanges, 
   generateUUID 
 } from '@/lib/supabaseSync';
@@ -170,6 +174,30 @@ export default function FalconHQApp() {
         if (remote.xpEvents !== null) {
           setXpEvents(remote.xpEvents);
         }
+        if (remote.chatThoughts !== null) {
+          setChatThoughts((prev) => {
+            const map = new Map<string, ChatThought>();
+            prev.forEach((t) => map.set(t.id, t));
+            remote.chatThoughts!.forEach((t) => map.set(t.id, t));
+            const merged = Array.from(map.values()).sort(
+              (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+            saveStoredChatThoughts(merged);
+            return merged;
+          });
+        }
+        if (remote.tasks !== null) {
+          setTasks((prev) => {
+            const map = new Map<string, OperationalTask>();
+            prev.forEach((t) => map.set(t.id, t));
+            remote.tasks!.forEach((t) => map.set(t.id, t));
+            const merged = Array.from(map.values()).sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+            saveStoredTasks(merged);
+            return merged;
+          });
+        }
       } catch (err) {
         console.warn('Sync refresh error:', err);
       }
@@ -179,9 +207,25 @@ export default function FalconHQApp() {
     refreshData();
 
     // Realtime Listener
-    const unsubscribe = subscribeToRealtimeChanges(() => {
-      refreshData();
-    });
+    const unsubscribe = subscribeToRealtimeChanges(
+      () => {
+        refreshData();
+      },
+      (incomingThought, needsFetch) => {
+        setChatThoughts((prev) => {
+          if (prev.some((t) => t.id === incomingThought.id)) return prev;
+          const updated = [...prev, incomingThought].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+          saveStoredChatThoughts(updated);
+          return updated;
+        });
+
+        if (needsFetch) {
+          refreshData();
+        }
+      }
+    );
 
     // Background Heartbeat Polling
     const pollInterval = setInterval(() => {
@@ -461,6 +505,7 @@ export default function FalconHQApp() {
     const updated = [newTask, ...tasks];
     setTasks(updated);
     saveStoredTasks(updated);
+    syncTasksToSupabase(updated);
   };
 
   const handleUpdateTaskStatus = (taskId: string, status: TaskStatus) => {
@@ -477,6 +522,7 @@ export default function FalconHQApp() {
     });
     setTasks(updated);
     saveStoredTasks(updated);
+    syncTasksToSupabase(updated);
 
     if (status === 'done' && target && target.status !== 'done') {
       const ev = addXpEvent({
@@ -496,6 +542,7 @@ export default function FalconHQApp() {
     const updated = tasks.map((t) => (t.id === taskId ? { ...t, isDeleted: true, deletedAt: new Date().toISOString() } : t));
     setTasks(updated);
     saveStoredTasks(updated);
+    syncTasksToSupabase(updated);
 
     setUndoToast({
       message: `تم نقل المهمة "${target.title.slice(0, 30)}..." لسلة المهملات`,
@@ -510,12 +557,14 @@ export default function FalconHQApp() {
     const updated = tasks.map((t) => (t.id === taskId ? { ...t, isDeleted: false, deletedAt: undefined } : t));
     setTasks(updated);
     saveStoredTasks(updated);
+    syncTasksToSupabase(updated);
   };
 
   const handlePurgeTask = (taskId: string) => {
     const updated = tasks.filter((t) => t.id !== taskId);
     setTasks(updated);
     saveStoredTasks(updated);
+    syncTasksToSupabase(updated);
   };
 
   // Handlers: Empty Trash Bin Completely
@@ -529,6 +578,7 @@ export default function FalconHQApp() {
     saveStoredScripts(purgedScripts);
     setTasks(purgedTasks);
     saveStoredTasks(purgedTasks);
+    syncTasksToSupabase(purgedTasks);
     setIsTrashBinOpen(false);
   };
 
@@ -542,6 +592,12 @@ export default function FalconHQApp() {
     const updated = [...chatThoughts, newThought];
     setChatThoughts(updated);
     saveStoredChatThoughts(updated);
+
+    // 1. Instant Realtime broadcast to peers
+    broadcastChatMessage(newThought);
+
+    // 2. Persistent cloud sync
+    syncChatThoughtsToSupabase(updated);
   };
 
   const handleConvertThoughtToIdea = (thought: ChatThought) => {
@@ -561,6 +617,8 @@ export default function FalconHQApp() {
     );
     setChatThoughts(updated);
     saveStoredChatThoughts(updated);
+    syncChatThoughtsToSupabase(updated);
+    broadcastDataChange('chat');
     setActiveTab('ideas');
   };
 
@@ -583,6 +641,8 @@ export default function FalconHQApp() {
     );
     setChatThoughts(updated);
     saveStoredChatThoughts(updated);
+    syncChatThoughtsToSupabase(updated);
+    broadcastDataChange('chat');
     setActiveTab('tasks');
   };
 
@@ -590,6 +650,8 @@ export default function FalconHQApp() {
     const updated = chatThoughts.filter((t) => t.id !== id);
     setChatThoughts(updated);
     saveStoredChatThoughts(updated);
+    syncChatThoughtsToSupabase(updated);
+    broadcastDataChange('chat');
   };
 
   // Handlers: Gamification Reset & Adjustment (Points 6, 8, 11)
