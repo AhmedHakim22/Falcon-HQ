@@ -54,42 +54,42 @@ export function PriorityModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-charcoal/40 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
       <div 
-        className="w-full max-w-md bg-white rounded-3xl border border-sand-border shadow-2xl p-6 sm:p-7 relative overflow-hidden"
+        className="w-full max-w-md bg-white dark:bg-stone-900 rounded-3xl border border-sand-border dark:border-stone-800 shadow-2xl p-6 sm:p-7 relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-sand-border">
+        <div className="flex items-center justify-between pb-4 border-b border-sand-border dark:border-stone-800">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-gold-light text-gold flex items-center justify-center">
+            <div className="w-9 h-9 rounded-2xl bg-gold-light dark:bg-amber-950/60 text-gold flex items-center justify-center">
               <Sliders className="w-5 h-5 stroke-[2.2]" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-charcoal">محرك تقييم أولوية الفكرة</h2>
-              <p className="text-xs text-charcoal-muted line-clamp-1">{idea.title}</p>
+              <h2 className="text-base font-bold text-charcoal dark:text-stone-100">محرك تقييم أولوية الفكرة</h2>
+              <p className="text-xs text-charcoal-muted dark:text-stone-400 line-clamp-1">{idea.title}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl hover:bg-sand-100 text-charcoal-muted hover:text-charcoal transition-colors"
+            className="p-1.5 rounded-xl hover:bg-sand-100 dark:hover:bg-stone-800 text-charcoal-muted hover:text-charcoal dark:text-stone-400 dark:hover:text-stone-200 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Live Score Bento Pill */}
-        <div className="my-5 p-4 rounded-2xl bg-sand-50 border border-sand-border flex items-center justify-between">
+        <div className="my-5 p-4 rounded-2xl bg-sand-50 dark:bg-stone-800/80 border border-sand-border dark:border-stone-700 flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-charcoal-muted block">درجة الأولوية المتوقعة</span>
+            <span className="text-[11px] font-semibold text-charcoal-muted dark:text-stone-400 block">درجة الأولوية المتوقعة</span>
             <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-2xl font-black text-charcoal">
+              <span className="text-2xl font-black text-charcoal dark:text-stone-100">
                 {currentScore !== null ? currentScore : 'غير مقيمة'}
               </span>
-              {currentScore !== null && <span className="text-xs text-charcoal-muted">من 100</span>}
+              {currentScore !== null && <span className="text-xs text-charcoal-muted dark:text-stone-400">من 100</span>}
             </div>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs border ${tier.badgeClass}`}>
+          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${tier.badgeClass}`}>
             {tier.label}
           </span>
         </div>
@@ -100,8 +100,8 @@ export function PriorityModal({
           {/* Factor 1: Goal Fit (40%) */}
           <div>
             <div className="flex justify-between text-xs font-semibold mb-1">
-              <span className="text-charcoal">ملاءمة أهداف فالكون (وزن 40%)</span>
-              <span className="text-falcon-600 font-bold">{goalFit} من 5</span>
+              <span className="text-charcoal dark:text-stone-200">ملاءمة أهداف فالكون (وزن 40%)</span>
+              <span className="text-falcon-600 dark:text-falcon-400 font-bold">{goalFit} من 5</span>
             </div>
             <input
               type="range"
@@ -112,7 +112,7 @@ export function PriorityModal({
               onChange={(e) => setGoalFit(Number(e.target.value))}
               className="w-full accent-falcon-600 cursor-pointer"
             />
-            <div className="flex justify-between text-[10px] text-charcoal-muted px-1 mt-0.5">
+            <div className="flex justify-between text-[10px] text-charcoal-muted dark:text-stone-400 px-1 mt-0.5">
               <span>بعيدة عن البراند</span>
               <span>في قلب الاستراتيجية</span>
             </div>
@@ -121,8 +121,8 @@ export function PriorityModal({
           {/* Factor 2: Customer Value (25%) */}
           <div>
             <div className="flex justify-between text-xs font-semibold mb-1">
-              <span className="text-charcoal">قيمة العميل وفائدة الجراب (وزن 25%)</span>
-              <span className="text-falcon-600 font-bold">{customerValue} من 5</span>
+              <span className="text-charcoal dark:text-stone-200">قيمة العميل وفائدة الجراب (وزن 25%)</span>
+              <span className="text-falcon-600 dark:text-falcon-400 font-bold">{customerValue} من 5</span>
             </div>
             <input
               type="range"
@@ -133,7 +133,7 @@ export function PriorityModal({
               onChange={(e) => setCustomerValue(Number(e.target.value))}
               className="w-full accent-falcon-600 cursor-pointer"
             />
-            <div className="flex justify-between text-[10px] text-charcoal-muted px-1 mt-0.5">
+            <div className="flex justify-between text-[10px] text-charcoal-muted dark:text-stone-400 px-1 mt-0.5">
               <span>فائدة عادية</span>
               <span>حاجة ملحة للشراء</span>
             </div>
@@ -142,8 +142,8 @@ export function PriorityModal({
           {/* Factor 3: Reach Potential (20%) */}
           <div>
             <div className="flex justify-between text-xs font-semibold mb-1">
-              <span className="text-charcoal">فرصة الانتشار والتريند (وزن 20%)</span>
-              <span className="text-falcon-600 font-bold">{reach} من 5</span>
+              <span className="text-charcoal dark:text-stone-200">فرصة الانتشار والتريند (وزن 20%)</span>
+              <span className="text-falcon-600 dark:text-falcon-400 font-bold">{reach} من 5</span>
             </div>
             <input
               type="range"
@@ -154,7 +154,7 @@ export function PriorityModal({
               onChange={(e) => setReach(Number(e.target.value))}
               className="w-full accent-falcon-600 cursor-pointer"
             />
-            <div className="flex justify-between text-[10px] text-charcoal-muted px-1 mt-0.5">
+            <div className="flex justify-between text-[10px] text-charcoal-muted dark:text-stone-400 px-1 mt-0.5">
               <span>مشاهدات محدودة</span>
               <span>فرصة فايرال عالية</span>
             </div>
@@ -163,8 +163,8 @@ export function PriorityModal({
           {/* Factor 4: Ease of Execution (15%) */}
           <div>
             <div className="flex justify-between text-xs font-semibold mb-1">
-              <span className="text-charcoal">سهولة التنفيذ والتصوير (وزن 15%)</span>
-              <span className="text-falcon-600 font-bold">{ease} من 5</span>
+              <span className="text-charcoal dark:text-stone-200">سهولة التنفيذ والتصوير (وزن 15%)</span>
+              <span className="text-falcon-600 dark:text-falcon-400 font-bold">{ease} من 5</span>
             </div>
             <input
               type="range"
@@ -175,7 +175,7 @@ export function PriorityModal({
               onChange={(e) => setEase(Number(e.target.value))}
               className="w-full accent-falcon-600 cursor-pointer"
             />
-            <div className="flex justify-between text-[10px] text-charcoal-muted px-1 mt-0.5">
+            <div className="flex justify-between text-[10px] text-charcoal-muted dark:text-stone-400 px-1 mt-0.5">
               <span>صعبة ومعقدة</span>
               <span>تصوير في 10 دقايق</span>
             </div>
@@ -184,11 +184,11 @@ export function PriorityModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="mt-6 pt-4 border-t border-sand-border flex justify-end gap-2.5">
+        <div className="mt-6 pt-4 border-t border-sand-border dark:border-stone-800 flex justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-2xl border border-sand-border bg-white hover:bg-sand-100 text-xs font-semibold text-charcoal"
+            className="px-4 py-2 rounded-2xl border border-sand-border dark:border-stone-700 bg-sand-50 dark:bg-stone-800 hover:bg-sand-100 dark:hover:bg-stone-700 text-xs font-semibold text-charcoal dark:text-stone-300"
           >
             إلغاء
           </button>

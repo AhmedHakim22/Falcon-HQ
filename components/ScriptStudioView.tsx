@@ -3,28 +3,27 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
+  Sparkles, 
+  Send, 
   CheckCircle2, 
   Clock, 
-  Sparkles, 
-  Save, 
-  Send, 
   HelpCircle, 
+  Eye, 
   Layers, 
-  Repeat, 
-  ChevronDown,
+  MessageCircle, 
   ArrowRight,
-  MessageSquare
+  ShieldCheck,
+  ChevronDown
 } from 'lucide-react';
-import { Script, ScriptFramework, OpenLoopsLevel, FrameworkSection, ScriptStatus } from '@/lib/types';
-import { FRAMEWORKS, getInitialSectionsForFramework } from '@/lib/frameworks';
-import { estimateSpeakingDuration, formatSpeakingTime } from '@/lib/utils';
+import { Script, ScriptFramework, OpenLoopsLevel, ScriptStatus } from '@/lib/types';
+import { FRAMEWORKS, getInitialSectionsForFramework, estimateSpeakingDuration, formatSpeakingTime } from '@/lib/frameworks';
 import confetti from 'canvas-confetti';
 
 interface ScriptStudioViewProps {
   activeScript: Script | null;
   scripts: Script[];
   onSelectScript: (script: Script) => void;
-  onSaveScript: (updated: Script) => void;
+  onSaveScript: (script: Script) => void;
   onUpdateStatus: (scriptId: string, status: ScriptStatus) => void;
   currentUser: string;
 }
@@ -38,28 +37,24 @@ export function ScriptStudioView({
   currentUser,
 }: ScriptStudioViewProps) {
   const [currentScript, setCurrentScript] = useState<Script | null>(activeScript);
-  const [activeFramework, setActiveFramework] = useState<ScriptFramework>('AIDA');
-  const [openLoopsLevel, setOpenLoopsLevel] = useState<OpenLoopsLevel>('off');
-  const [isSavedLocally, setIsSavedLocally] = useState<boolean>(true);
+  const [activeFramework, setActiveFramework] = useState<ScriptFramework>(activeScript?.framework || 'AIDA');
+  const [openLoopsLevel, setOpenLoopsLevel] = useState<OpenLoopsLevel>(activeScript?.openLoopsLevel || 'light');
+  const [isSavedLocally, setIsSavedLocally] = useState(true);
 
   useEffect(() => {
     if (activeScript) {
       setCurrentScript(activeScript);
       setActiveFramework(activeScript.framework);
       setOpenLoopsLevel(activeScript.openLoopsLevel);
-    } else if (scripts.length > 0) {
-      setCurrentScript(scripts[0]);
-      setActiveFramework(scripts[0].framework);
-      setOpenLoopsLevel(scripts[0].openLoopsLevel);
     }
-  }, [activeScript?.id]);
+  }, [activeScript]);
 
   if (!currentScript) {
     return (
-      <div className="bento-card p-12 text-center max-w-lg mx-auto">
-        <FileText className="w-12 h-12 text-charcoal-muted mx-auto mb-3" />
-        <h3 className="text-base font-bold text-charcoal">مفيش سكريبت محدد حالياً</h3>
-        <p className="text-xs text-charcoal-muted mt-1">اختر فكرة من بنك الأفكار وحولها لسكريبت موجه!</p>
+      <div className="bento-card p-12 text-center">
+        <FileText className="w-12 h-12 text-charcoal-muted dark:text-stone-500 mx-auto mb-3" />
+        <h3 className="text-base font-bold text-charcoal dark:text-stone-200">مفيش سكريبت محدد حالياً</h3>
+        <p className="text-xs text-charcoal-muted dark:text-stone-400 mt-1">اختر فكرة من بنك الأفكار وحولها لسكريبت موجه!</p>
       </div>
     );
   }
@@ -178,15 +173,15 @@ export function ScriptStudioView({
       <div className="bento-card p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sand-100 text-charcoal border border-sand-border">
+            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sand-100 dark:bg-stone-800 text-charcoal dark:text-stone-300 border border-sand-border dark:border-stone-700">
               استوديو السكريبتات ✍️
             </span>
             <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
               currentScript.status === 'ready_to_film'
-                ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'
                 : currentScript.status === 'review_ready'
-                ? 'bg-gold-light text-gold-dark border-amber-200'
-                : 'bg-sand-100 text-charcoal-muted border-sand-border'
+                ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900'
+                : 'bg-sand-100 dark:bg-stone-800 text-charcoal-muted dark:text-stone-400 border-sand-border dark:border-stone-700'
             }`}>
               {currentScript.status === 'ready_to_film'
                 ? '✅ معتمد وجاهز للتصوير'
@@ -196,17 +191,17 @@ export function ScriptStudioView({
             </span>
           </div>
 
-          <h2 className="text-xl sm:text-2xl font-black text-charcoal">{currentScript.title}</h2>
-          <p className="text-xs text-charcoal-muted mt-1">الكاتب: {currentScript.authorName} • الحفظ: {isSavedLocally ? 'محفوظ محلياً ومؤمّن 🛡️' : 'جاري الحفظ...'}</p>
+          <h2 className="text-xl sm:text-2xl font-black text-charcoal dark:text-stone-100">{currentScript.title}</h2>
+          <p className="text-xs text-charcoal-muted dark:text-stone-400 mt-1">الكاتب: {currentScript.authorName} • الحفظ: {isSavedLocally ? 'محفوظ محلياً ومؤمّن 🛡️' : 'جاري الحفظ...'}</p>
         </div>
 
         {/* Duration counter & Handoff buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Speaking Time Pill */}
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-sand-50 border border-sand-border text-xs font-semibold text-charcoal">
-            <Clock className="w-4 h-4 text-falcon-600" />
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-sand-50 dark:bg-stone-800/90 border border-sand-border dark:border-stone-700 text-xs font-semibold text-charcoal dark:text-stone-200 shadow-xs">
+            <Clock className="w-4 h-4 text-falcon-600 dark:text-falcon-400" />
             <span>{formatSpeakingTime(durationStats.seconds)}</span>
-            <span className="text-charcoal-muted">({durationStats.words} كلمة)</span>
+            <span className="text-charcoal-muted dark:text-stone-400">({durationStats.words} كلمة)</span>
           </div>
 
           {/* Action Buttons */}
@@ -215,9 +210,9 @@ export function ScriptStudioView({
               {currentScript.status !== 'review_ready' ? (
                 <button
                   onClick={handleHandoffForReview}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-white hover:bg-sand-100 border border-sand-border text-xs font-bold text-charcoal transition-all shadow-xs"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-sand-50 dark:bg-stone-800 hover:bg-sand-100 dark:hover:bg-stone-700 border border-sand-border dark:border-stone-700 text-xs font-bold text-charcoal dark:text-stone-200 transition-all shadow-xs"
                 >
-                  <Send className="w-3.5 h-3.5 text-gold" />
+                  <Send className="w-3.5 h-3.5 text-amber-500" />
                   <span>إرسال للمراجعة للشريك (+15 XP)</span>
                 </button>
               ) : null}
@@ -231,7 +226,7 @@ export function ScriptStudioView({
               </button>
             </>
           ) : (
-            <div className="px-4 py-2 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold flex items-center gap-1.5">
+            <div className="px-4 py-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-400 text-xs font-bold flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4" />
               <span>معتمد بواسطة {currentScript.reviewerName || 'المؤسس'}</span>
             </div>
@@ -244,7 +239,7 @@ export function ScriptStudioView({
         
         {/* Framework Selector */}
         <div className="bento-card p-4">
-          <label className="block text-xs font-bold text-charcoal mb-2">
+          <label className="block text-xs font-bold text-charcoal dark:text-stone-200 mb-2">
             مدرسة الإقناع التسويقي (Framework)
           </label>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
@@ -255,10 +250,10 @@ export function ScriptStudioView({
                   type="button"
                   key={fw}
                   onClick={() => handleSwitchFramework(fw)}
-                  className={`py-2 px-2 rounded-xl text-xs font-semibold text-center transition-all cursor-pointer ${
+                  className={`py-2 px-2 rounded-xl text-xs font-semibold text-center transition-all cursor-pointer border ${
                     isSelected
-                      ? 'bg-falcon-600 text-white shadow-xs font-bold'
-                      : 'bg-sand-50 text-charcoal-muted hover:bg-sand-200'
+                      ? 'bg-falcon-600 text-white border-falcon-600 shadow-xs font-bold'
+                      : 'bg-sand-50 dark:bg-stone-800/90 border-sand-border/80 dark:border-stone-700 text-charcoal dark:text-stone-300 hover:bg-sand-200 dark:hover:bg-stone-700'
                   }`}
                 >
                   {fw}
@@ -266,15 +261,15 @@ export function ScriptStudioView({
               );
             })}
           </div>
-          <p className="text-[11px] text-charcoal-muted mt-2">
+          <p className="text-[11px] text-charcoal-muted dark:text-stone-400 mt-2">
             💡 {FRAMEWORKS[activeFramework]?.tagline}
           </p>
         </div>
 
         {/* Open Loops Controller */}
         <div className="bento-card p-4">
-          <label className="block text-xs font-bold text-charcoal mb-2 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-falcon-600" />
+          <label className="block text-xs font-bold text-charcoal dark:text-stone-200 mb-2 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-falcon-600 dark:text-falcon-400" />
             <span>محرك الألغاز المشوقة (Open Loops Engine)</span>
           </label>
           <div className="grid grid-cols-3 gap-1.5">
@@ -289,10 +284,10 @@ export function ScriptStudioView({
                   type="button"
                   key={lvl.id}
                   onClick={() => handleToggleOpenLoops(lvl.id as any)}
-                  className={`py-2 px-2 rounded-xl text-xs font-semibold text-center transition-all cursor-pointer ${
+                  className={`py-2 px-2 rounded-xl text-xs font-semibold text-center transition-all cursor-pointer border ${
                     isSelected
-                      ? 'bg-falcon-600 text-white shadow-xs font-bold'
-                      : 'bg-sand-50 text-charcoal-muted hover:bg-sand-200'
+                      ? 'bg-falcon-600 text-white border-falcon-600 shadow-xs font-bold'
+                      : 'bg-sand-50 dark:bg-stone-800/90 border-sand-border/80 dark:border-stone-700 text-charcoal dark:text-stone-300 hover:bg-sand-200 dark:hover:bg-stone-700'
                   }`}
                 >
                   {lvl.label}
@@ -300,7 +295,7 @@ export function ScriptStudioView({
               );
             })}
           </div>
-          <p className="text-[11px] text-charcoal-muted mt-2">
+          <p className="text-[11px] text-charcoal-muted dark:text-stone-400 mt-2">
             فتح لغز في بداية الفيديو وإجابته قبل الـ CTA يضاعف متوسط وقت المشاهدة.
           </p>
         </div>
@@ -312,39 +307,39 @@ export function ScriptStudioView({
         
         {/* Open Loop Card (if active) */}
         {openLoopsLevel !== 'off' && (currentScript.openLoops?.length ?? 0) > 0 && (
-          <div className="bento-card p-5 sm:p-6 border-2 border-dashed border-falcon-500/40 bg-gradient-to-br from-white to-falcon-50/20">
+          <div className="bento-card p-5 sm:p-6 border-2 border-dashed border-falcon-500/40 bg-gradient-to-br from-white to-falcon-50/20 dark:from-stone-900 dark:to-falcon-950/20 dark:border-falcon-500/40">
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-xl bg-falcon-50 text-falcon-600 flex items-center justify-center font-bold text-xs">
+              <div className="w-7 h-7 rounded-xl bg-falcon-50 dark:bg-falcon-950/60 text-falcon-600 dark:text-falcon-400 flex items-center justify-center font-bold text-xs">
                 ∞
               </div>
               <div>
-                <h4 className="text-xs font-bold text-charcoal">كارت الحلقة المفتوحة (Open Loop Hook)</h4>
-                <p className="text-[11px] text-charcoal-muted">جملة فضول في أول 5 ثواني مع إجابتها قبل النهاية</p>
+                <h4 className="text-xs font-bold text-charcoal dark:text-stone-100">كارت الحلقة المفتوحة (Open Loop Hook)</h4>
+                <p className="text-[11px] text-charcoal-muted dark:text-stone-400">جملة فضول في أول 5 ثواني مع إجابتها قبل النهاية</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
               <div>
-                <label className="block text-[11px] font-bold text-charcoal mb-1">اللغز / الهوك المشوق (بداية الفيديو)</label>
+                <label className="block text-[11px] font-bold text-charcoal dark:text-stone-200 mb-1">اللغز / الهوك المشوق (بداية الفيديو)</label>
                 <input
                   type="text"
                   dir="auto"
                   value={currentScript.openLoops[0]?.loopHook || ''}
                   onChange={(e) => handleUpdateOpenLoop(currentScript.openLoops[0]?.id, e.target.value, currentScript.openLoops[0]?.loopPayoff)}
                   placeholder="مثال: هقولك في آخر الفيديو على السر اللي..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-sand-border text-xs text-charcoal outline-none focus:border-falcon-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-sand-50/80 dark:bg-stone-800/90 border border-sand-border dark:border-stone-700 text-xs text-charcoal dark:text-stone-100 outline-none focus:border-falcon-600 placeholder:text-charcoal-muted/50 dark:placeholder:text-stone-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-charcoal mb-1">الإجابة والحل (Payoff قبل الـ CTA)</label>
+                <label className="block text-[11px] font-bold text-charcoal dark:text-stone-200 mb-1">الإجابة والحل (Payoff قبل الـ CTA)</label>
                 <input
                   type="text"
                   dir="auto"
                   value={currentScript.openLoops[0]?.loopPayoff || ''}
                   onChange={(e) => handleUpdateOpenLoop(currentScript.openLoops[0]?.id, currentScript.openLoops[0]?.loopHook, e.target.value)}
                   placeholder="مثال: الإجابة: تختار خامة البولي كربونات..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-sand-border text-xs text-charcoal outline-none focus:border-falcon-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-sand-50/80 dark:bg-stone-800/90 border border-sand-border dark:border-stone-700 text-xs text-charcoal dark:text-stone-100 outline-none focus:border-falcon-600 placeholder:text-charcoal-muted/50 dark:placeholder:text-stone-500"
                 />
               </div>
             </div>
@@ -356,14 +351,14 @@ export function ScriptStudioView({
           <div key={section.id} className="bento-card p-5 sm:p-6 transition-all focus-within:border-falcon-500">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-falcon-50 text-falcon-600 text-xs font-bold flex items-center justify-center">
+                <span className="w-6 h-6 rounded-lg bg-falcon-50 dark:bg-falcon-950/60 text-falcon-600 dark:text-falcon-400 text-xs font-bold flex items-center justify-center border border-falcon-200/50 dark:border-falcon-900/50">
                   {idx + 1}
                 </span>
-                <h3 className="text-sm font-bold text-charcoal">{section.label}</h3>
+                <h3 className="text-sm font-bold text-charcoal dark:text-stone-100">{section.label}</h3>
               </div>
             </div>
 
-            <p className="text-xs text-charcoal-muted mb-3 bg-sand-50 p-2 rounded-xl border border-sand-border">
+            <p className="text-xs text-charcoal-muted dark:text-stone-300 mb-3 bg-sand-50 dark:bg-stone-800/80 p-2.5 rounded-xl border border-sand-border dark:border-stone-700/80">
               💡 {section.prompt}
             </p>
 
@@ -373,7 +368,7 @@ export function ScriptStudioView({
               value={section.content}
               onChange={(e) => handleSectionContentChange(section.id, e.target.value)}
               placeholder="اكتب هنا بلهجة مصرية واضحة ومقنعة..."
-              className="w-full px-4 py-3 rounded-2xl bg-white border border-sand-border text-sm text-charcoal outline-none focus:border-falcon-600 focus:ring-1 focus:ring-falcon-600/30 transition-all placeholder:text-charcoal-muted/50 leading-relaxed resize-y"
+              className="w-full px-4 py-3 rounded-2xl bg-sand-50/60 dark:bg-stone-800/90 border border-sand-border dark:border-stone-700 text-sm text-charcoal dark:text-stone-100 outline-none focus:border-falcon-600 dark:focus:border-falcon-500 focus:ring-1 focus:ring-falcon-600/30 transition-all placeholder:text-charcoal-muted/50 dark:placeholder:text-stone-500 leading-relaxed resize-y"
             />
           </div>
         ))}

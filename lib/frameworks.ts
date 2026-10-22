@@ -166,3 +166,17 @@ export function getInitialSectionsForFramework(framework: ScriptFramework): Fram
     content: '',
   }));
 }
+
+export function estimateSpeakingDuration(text: string): { words: number; seconds: number } {
+  if (!text || !text.trim()) return { words: 0, seconds: 0 };
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const seconds = Math.ceil(words / 2.3);
+  return { words, seconds };
+}
+
+export function formatSpeakingTime(seconds: number): string {
+  if (seconds < 60) return `${seconds} ثانية`;
+  const mins = Math.floor(seconds / 60);
+  const remSec = seconds % 60;
+  return `${mins} دقيقة ${remSec > 0 ? `و ${remSec} ثانية` : ''}`;
+}
