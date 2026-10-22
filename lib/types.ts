@@ -2,6 +2,22 @@ export type IdeaCategory = 'content' | 'marketing' | 'product' | 'sales' | 'bizd
 
 export type IdeaType = 'content' | 'product' | 'problem';
 
+export function resolveIdeaType(idea?: { category?: string; ideaType?: string } | null): IdeaType {
+  if (!idea) return 'content';
+  if (idea.ideaType === 'product' || idea.category === 'product') return 'product';
+  if (idea.ideaType === 'problem' || idea.category === 'problem' || idea.category === 'bizdev') return 'problem';
+  return 'content';
+}
+
+export function resolveDbCategory(idea?: { category?: string; ideaType?: string } | null): IdeaCategory {
+  if (!idea) return 'content';
+  if (idea.ideaType === 'product' || idea.category === 'product') return 'product';
+  if (idea.ideaType === 'problem' || idea.category === 'problem' || idea.category === 'bizdev') return 'bizdev';
+  if (idea.category === 'sales') return 'sales';
+  if (idea.category === 'marketing') return 'marketing';
+  return 'content';
+}
+
 export type IdeaStatus = 
   | 'inbox' 
   | 'evaluating' 

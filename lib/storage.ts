@@ -6,7 +6,9 @@ import {
   TeamQuest, 
   OperationalTask, 
   ChatThought, 
-  PerformanceConfig 
+  PerformanceConfig,
+  resolveIdeaType,
+  resolveDbCategory
 } from './types';
 import { getInitialSectionsForFramework } from './frameworks';
 
@@ -263,7 +265,13 @@ export function getStoredIdeas(): Idea[] {
   if (typeof window === 'undefined') return INITIAL_IDEAS;
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.IDEAS);
-    return raw ? JSON.parse(raw) : INITIAL_IDEAS;
+    if (!raw) return INITIAL_IDEAS;
+    const list: Idea[] = JSON.parse(raw);
+    return list.map((idea) => ({
+      ...idea,
+      ideaType: resolveIdeaType(idea),
+      category: resolveDbCategory(idea),
+    }));
   } catch {
     return INITIAL_IDEAS;
   }

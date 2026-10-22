@@ -62,7 +62,9 @@ import {
   PerformanceConfig, 
   IdeaStatus, 
   ScriptStatus,
-  TaskStatus 
+  TaskStatus,
+  resolveIdeaType,
+  resolveDbCategory
 } from '@/lib/types';
 import { calculatePriorityScore } from '@/lib/priority';
 import { getInitialSectionsForFramework } from '@/lib/frameworks';
@@ -206,11 +208,13 @@ export default function FalconHQApp() {
   // Handlers: Save Idea
   const handleSaveIdea = (newIdeaData: Partial<Idea>, nextAction: 'start_script' | 'save_inbox' | 'action_plan') => {
     const newId = generateUUID();
+    const ideaType = newIdeaData.ideaType || resolveIdeaType(newIdeaData);
+    const category = resolveDbCategory({ ...newIdeaData, ideaType });
     const newIdea: Idea = {
       id: newId,
       title: newIdeaData.title || 'فكرة جديدة',
-      category: newIdeaData.category || 'content',
-      ideaType: newIdeaData.ideaType || 'content',
+      category,
+      ideaType,
       status: newIdeaData.status || 'inbox',
       sourceUrl: newIdeaData.sourceUrl || '',
       notes: newIdeaData.notes || '',
@@ -241,10 +245,17 @@ export default function FalconHQApp() {
 
   // Handlers: Update Existing Idea (Point 7)
   const handleUpdateIdea = (updatedIdea: Idea) => {
-    const updated = ideas.map((i) => (i.id === updatedIdea.id ? updatedIdea : i));
+    const ideaType = resolveIdeaType(updatedIdea);
+    const category = resolveDbCategory({ ...updatedIdea, ideaType });
+    const normalizedIdea: Idea = {
+      ...updatedIdea,
+      ideaType,
+      category,
+    };
+    const updated = ideas.map((i) => (i.id === normalizedIdea.id ? normalizedIdea : i));
     setIdeas(updated);
     saveStoredIdeas(updated);
-    syncIdeaToSupabase(updatedIdea);
+    syncIdeaToSupabase(normalizedIdea);
   };
 
   // Handlers: Soft Delete Idea (Points 4 & 5)

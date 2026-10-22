@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { Idea, Script, BusinessOutcome, XpEvent } from './types';
+import { Idea, Script, BusinessOutcome, XpEvent, resolveIdeaType, resolveDbCategory } from './types';
 
 // Helper to ensure valid UUID v4
 export function generateUUID(): string {
@@ -64,6 +64,7 @@ export async function fetchRemoteData(): Promise<{
         id: row.id,
         title: row.title,
         category: row.category,
+        ideaType: resolveIdeaType({ category: row.category }),
         status: row.status,
         sourceUrl: row.source_url || '',
         notes: row.notes || '',
@@ -137,10 +138,11 @@ export async function fetchRemoteData(): Promise<{
 export async function syncIdeaToSupabase(idea: Idea) {
   if (!supabase || !isSupabaseConfigured) return;
   try {
+    const dbCategory = resolveDbCategory(idea);
     const payload = {
       id: idea.id,
       title: idea.title,
-      category: idea.category,
+      category: dbCategory,
       status: idea.status,
       source_url: idea.sourceUrl || null,
       notes: idea.notes || null,

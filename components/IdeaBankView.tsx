@@ -16,7 +16,7 @@ import {
   User,
   Tag
 } from 'lucide-react';
-import { Idea, IdeaCategory, IdeaType, IdeaStatus } from '@/lib/types';
+import { Idea, IdeaCategory, IdeaType, IdeaStatus, resolveIdeaType } from '@/lib/types';
 import { getPriorityTier } from '@/lib/priority';
 
 interface IdeaBankViewProps {
@@ -52,7 +52,8 @@ export function IdeaBankView({
     const matchesSearch = 
       idea.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (idea.notes && idea.notes.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesType = selectedType === 'all' || (idea.ideaType || 'content') === selectedType;
+    const type = resolveIdeaType(idea);
+    const matchesType = selectedType === 'all' || type === selectedType;
     return matchesSearch && matchesType;
   });
 
@@ -144,9 +145,10 @@ export function IdeaBankView({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredIdeas.map((idea) => {
           const tier = getPriorityTier(idea.totalPriorityScore ?? null);
+          const currentType = resolveIdeaType(idea);
           const typeLabel = 
-            idea.ideaType === 'product' ? '📱 منتج جديد' :
-            idea.ideaType === 'problem' ? '🛠️ حل مشكلة' : '🎬 محتوى وتسويق';
+            currentType === 'product' ? '📱 أفكار منتجات' :
+            currentType === 'problem' ? '🛠️ حل مشاكل' : '🎬 أفكار محتوى';
           
           return (
             <div
@@ -157,9 +159,9 @@ export function IdeaBankView({
                 {/* Card Top: Type Tag & Priority Badge */}
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                    idea.ideaType === 'product'
+                    currentType === 'product'
                       ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900'
-                      : idea.ideaType === 'problem'
+                      : currentType === 'problem'
                       ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-900'
                       : 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900'
                   }`}>

@@ -16,7 +16,7 @@ import {
   Layers, 
   Link as LinkIcon 
 } from 'lucide-react';
-import { Idea, IdeaCategory, IdeaType, IdeaStatus } from '@/lib/types';
+import { Idea, IdeaCategory, IdeaType, IdeaStatus, resolveIdeaType, resolveDbCategory } from '@/lib/types';
 import { calculatePriorityScore } from '@/lib/priority';
 
 interface EditIdeaModalProps {
@@ -60,8 +60,9 @@ export function EditIdeaModal({
   useEffect(() => {
     if (idea) {
       setTitle(idea.title || '');
-      setIdeaType(idea.ideaType || 'content');
-      setCategory(idea.category || 'content');
+      const initialType = resolveIdeaType(idea);
+      setIdeaType(initialType);
+      setCategory(resolveDbCategory(idea));
       setStatus(idea.status || 'inbox');
       setCreatorName(idea.creatorName || currentUser);
       setAssigneeName(idea.assigneeName || 'معاذ');
@@ -151,11 +152,12 @@ export function EditIdeaModal({
     e.preventDefault();
     if (!title.trim()) return;
 
+    const finalCategory = resolveDbCategory({ ideaType, category });
     const updated: Idea = {
       ...idea,
       title: title.trim(),
       ideaType,
-      category,
+      category: finalCategory,
       status,
       creatorName,
       assigneeName,
@@ -235,7 +237,11 @@ export function EditIdeaModal({
                 <button
                   type="button"
                   key={t.id}
-                  onClick={() => setIdeaType(t.id as IdeaType)}
+                  onClick={() => {
+                    const newType = t.id as IdeaType;
+                    setIdeaType(newType);
+                    setCategory(resolveDbCategory({ ideaType: newType }));
+                  }}
                   className={`p-2.5 rounded-2xl border text-right transition-all ${
                     ideaType === t.id
                       ? 'bg-falcon-50 dark:bg-falcon-950/60 border-falcon-600 text-falcon-700 dark:text-falcon-400 shadow-xs'

@@ -14,7 +14,7 @@ import {
   Pause, 
   Trash2 
 } from 'lucide-react';
-import { Idea, IdeaCategory, IdeaType } from '@/lib/types';
+import { Idea, IdeaCategory, IdeaType, resolveDbCategory } from '@/lib/types';
 import confetti from 'canvas-confetti';
 
 interface QuickCaptureModalProps {
@@ -110,12 +110,13 @@ export function QuickCaptureModal({
       });
     } catch {}
 
+    const finalCategory = resolveDbCategory({ ideaType, category });
     onSaveIdea(
       {
         title: title.trim(),
         sourceUrl: sourceUrl.trim(),
         ideaType,
-        category,
+        category: finalCategory,
         notes: notes.trim(),
         creatorName,
         voiceNoteBase64,
@@ -190,7 +191,11 @@ export function QuickCaptureModal({
                 <button
                   type="button"
                   key={t.id}
-                  onClick={() => setIdeaType(t.id as any)}
+                  onClick={() => {
+                    const newType = t.id as IdeaType;
+                    setIdeaType(newType);
+                    setCategory(resolveDbCategory({ ideaType: newType }));
+                  }}
                   className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all ${
                     ideaType === t.id
                       ? 'bg-falcon-50 dark:bg-falcon-950/60 border-falcon-600 text-falcon-600 dark:text-falcon-400 shadow-xs'
