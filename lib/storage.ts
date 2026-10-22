@@ -134,45 +134,9 @@ const INITIAL_SCRIPTS: Script[] = [
   },
 ];
 
-const INITIAL_OUTCOMES: BusinessOutcome[] = [
-  {
-    id: 'cccccccc-cccc-4ccc-cccc-cccccccccccc',
-    scriptId: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
-    ideaTitle: 'مقارنة اصفرار الجرابات الرخيصة مقابل كفر فالكون',
-    publishedUrl: 'https://instagram.com/reel/published1',
-    ordersAttributed: 42,
-    revenueAttributed: 14700,
-    inquiriesCount: 165,
-    confidenceLevel: 'high',
-    keyLearning: 'الهوك المقارن المباشر في أول ثانيتين رفع معدل التحويل 3 أضعاف مقارنة بالفيديوهات العادية.',
-    isWinningPattern: true,
-    recordedAt: new Date(Date.now() - 4 * 86400000).toISOString(),
-  },
-];
+const INITIAL_OUTCOMES: BusinessOutcome[] = [];
 
-const INITIAL_XP_EVENTS: XpEvent[] = [
-  {
-    id: 'dddddddd-dddd-4ddd-dddd-dddddddddddd',
-    eventType: 'idea_created',
-    xpAmount: 5,
-    description: 'تسجيل فكرة جديدة: مقارنة الاصفرار',
-    createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
-  },
-  {
-    id: 'eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee',
-    eventType: 'script_completed',
-    xpAmount: 15,
-    description: 'كتابة سكريبت AIDA لفيديو الاصفرار',
-    createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-  },
-  {
-    id: 'ffffffff-ffff-4fff-ffff-ffffffffffff',
-    eventType: 'script_approved',
-    xpAmount: 25,
-    description: 'اعتماد السكريبت وتجهيزه للتصوير',
-    createdAt: new Date(Date.now() - 1 * 86400000).toISOString(),
-  },
-];
+const INITIAL_XP_EVENTS: XpEvent[] = [];
 
 export const INITIAL_TEAM_QUESTS: TeamQuest[] = [
   {
@@ -324,6 +288,34 @@ export function saveStoredOutcomes(outcomes: BusinessOutcome[]): void {
   }
 }
 
+export function clearStoredOutcomes(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(STORAGE_KEYS.OUTCOMES);
+  } catch (err) {
+    console.error('Failed to clear outcomes from LocalStorage:', err);
+  }
+}
+
+export function getStoredStreak(): number {
+  if (typeof window === 'undefined') return 0;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.STREAK);
+    return raw !== null ? Number(raw) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function saveStoredStreak(days: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.STREAK, String(days));
+  } catch (err) {
+    console.error('Failed to save streak to LocalStorage:', err);
+  }
+}
+
 export function getStoredXpEvents(): XpEvent[] {
   if (typeof window === 'undefined') return INITIAL_XP_EVENTS;
   try {
@@ -340,6 +332,15 @@ export function saveStoredXpEvents(events: XpEvent[]): void {
     localStorage.setItem(STORAGE_KEYS.XP_EVENTS, JSON.stringify(events));
   } catch (err) {
     console.error('Failed to save XP events:', err);
+  }
+}
+
+export function clearStoredXpEvents(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(STORAGE_KEYS.XP_EVENTS);
+  } catch (err) {
+    console.error('Failed to clear XP events from LocalStorage:', err);
   }
 }
 

@@ -286,6 +286,30 @@ export async function syncOutcomeToSupabase(outcome: BusinessOutcome) {
   }
 }
 
+export async function deleteOutcomeFromSupabase(outcomeId: string) {
+  if (!supabase || !isSupabaseConfigured) return;
+  try {
+    const { error } = await supabase.from('business_outcomes').delete().eq('id', outcomeId);
+    if (!error) {
+      broadcastDataChange('business_outcomes');
+    }
+  } catch (err) {
+    console.warn('Delete outcome error:', err);
+  }
+}
+
+export async function clearAllOutcomesFromSupabase() {
+  if (!supabase || !isSupabaseConfigured) return;
+  try {
+    const { error } = await supabase.from('business_outcomes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (!error) {
+      broadcastDataChange('business_outcomes');
+    }
+  } catch (err) {
+    console.warn('Clear all outcomes error:', err);
+  }
+}
+
 export async function syncXpEventToSupabase(event: XpEvent) {
   if (!supabase || !isSupabaseConfigured) return;
   try {
@@ -301,6 +325,30 @@ export async function syncXpEventToSupabase(event: XpEvent) {
     }
   } catch (err) {
     console.warn('Network sync XP error:', err);
+  }
+}
+
+export async function deleteXpEventFromSupabase(eventId: string) {
+  if (!supabase || !isSupabaseConfigured) return;
+  try {
+    const { error } = await supabase.from('xp_ledger').delete().eq('id', eventId);
+    if (!error) {
+      broadcastDataChange('xp_ledger');
+    }
+  } catch (err) {
+    console.warn('Delete XP event error:', err);
+  }
+}
+
+export async function clearAllXpEventsFromSupabase() {
+  if (!supabase || !isSupabaseConfigured) return;
+  try {
+    const { error } = await supabase.from('xp_ledger').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (!error) {
+      broadcastDataChange('xp_ledger');
+    }
+  } catch (err) {
+    console.warn('Clear all XP events error:', err);
   }
 }
 

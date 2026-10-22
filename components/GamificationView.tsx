@@ -14,7 +14,10 @@ import {
   Plus, 
   Sliders, 
   X,
-  Target
+  Target,
+  Trash2,
+  AlertTriangle,
+  Edit3
 } from 'lucide-react';
 import { XpEvent, TeamQuest, PerformanceConfig } from '@/lib/types';
 
@@ -26,7 +29,11 @@ interface GamificationViewProps {
   performance: PerformanceConfig;
   onUpdatePerformance: (conf: PerformanceConfig) => void;
   onResetWeeklyXp: () => void;
+  onResetAllGamification?: () => void;
   onAdjustXp: (amount: number, reason: string) => void;
+  onSetExactXp?: (exactXp: number, reason: string) => void;
+  onDeleteXpEvent?: (eventId: string) => void;
+  onUpdateStreak?: (days: number) => void;
   currentUser: string;
 }
 
@@ -38,23 +45,30 @@ export function GamificationView({
   performance,
   onUpdatePerformance,
   onResetWeeklyXp,
+  onResetAllGamification,
   onAdjustXp,
+  onSetExactXp,
+  onDeleteXpEvent,
+  onUpdateStreak,
   currentUser,
 }: GamificationViewProps) {
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [adjustAmount, setAdjustAmount] = useState<number>(10);
   const [adjustReason, setAdjustReason] = useState('');
-  const [adjustType, setAdjustType] = useState<'add' | 'deduct'>('add');
+  const [adjustType, setAdjustType] = useState<'add' | 'deduct' | 'set'>('add');
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
+  const [tempStreak, setTempStreak] = useState<number>(streakDays);
 
-  const currentLevel = Math.floor(totalXp / 100) + 1;
-  const levelProgress = totalXp % 100;
+  const currentLevel = Math.max(1, Math.floor(totalXp / 100) + 1);
+  const levelProgress = Math.max(0, totalXp % 100);
 
-  // Weekly Target Progress (Point 11, Answer A3)
+  // Weekly Target Progress
   const targetXp = performance.weeklyTargetXp || 120;
-  const targetPercent = Math.min(100, Math.round((totalXp / targetXp) * 100));
+  const targetPercent = Math.min(100, Math.max(0, Math.round((totalXp / targetXp) * 100)));
 
-  // Estimated Bonus Calculation (Point 11: النقاط تتحول لبونص)
-  const estimatedBonusEgp = Math.round((totalXp / 10) * (performance.egpPer10Xp || 15));
+  // Estimated Bonus Calculation
+  const estimatedBonusEgp = Math.max(0, Math.round((totalXp / 10) * (performance.egpPer10Xp || 15)));
 
   // Ranks / Titles based on XP
   const ranks = [
@@ -70,10 +84,23 @@ export function GamificationView({
     e.preventDefault();
     if (!adjustReason.trim()) return;
 
-    const finalAmount = adjustType === 'add' ? Math.abs(adjustAmount) : -Math.abs(adjustAmount);
-    onAdjustXp(finalAmount, adjustReason.trim());
+    if (adjustType === 'set' && onSetExactXp) {
+      onSetExactXp(Math.max(0, Number(adjustAmount)), adjustReason.trim());
+    } else {
+      const finalAmount = adjustType === 'add' ? Math.abs(adjustAmount) : -Math.abs(adjustAmount);
+      onAdjustXp(finalAmount, adjustReason.trim());
+    }
+
     setIsAdjustModalOpen(false);
     setAdjustReason('');
+  };
+
+  const handleStreakSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onUpdateStreak) {
+      onUpdateStreak(Math.max(0, Number(tempStreak)));
+    }
+    setIsStreakModalOpen(false);
   };
 
   return (
@@ -86,45 +113,47 @@ export function GamificationView({
             <h1 className="text-xl sm:text-2xl font-black text-charcoal dark:text-stone-100">
               منظومة التحفيز والبونص (Gamification)
             </h1>
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-gold-light text-gold-dark border border-amber-200 dark:border-amber-900">
-              {currentRank.badge} {currentRank.title}
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900">
+              {currentRank.badge} المستوى {currentLevel} • {currentRank.title}
             </span>
           </div>
           <p className="text-xs text-charcoal-muted dark:text-stone-400 mt-1">
-            نقاط تفاعلية مرتبطة بالتارجت الأسبوعي، ومكافآت بونص حقيقية لأحمد ومعاذ
+            نقاط تفاعلية مرتبطة بالتارجت الأسبوعي، مع إمكانية تعديلها أو تصفيرها في أي وقت
           </p>
         </div>
 
-        {/* Action Controls: Reset Week / Adjust XP (Points 6 & 8) */}
-        <div className="flex items-center gap-2">
+        {/* Action Controls */}
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setIsAdjustModalOpen(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-sand-100 dark:bg-stone-800 hover:bg-sand-200 dark:hover:bg-stone-700 text-charcoal dark:text-stone-200 text-xs font-bold border border-sand-border dark:border-stone-700 transition-all"
-            title="تعديل رصيد النقاط يدوياً"
+            title="تعديل رصيد النقاط أو تعيين رقم محدد"
           >
-            <Sliders className="w-3.5 h-3.5" />
+            <Sliders className="w-3.5 h-3.5 text-falcon-600" />
             <span>تعديل يدوي للنقاط</span>
           </button>
 
-          <button
-            onClick={onResetWeeklyXp}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs font-bold transition-all"
-            title="تصفير أسبوع جديد"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>تصفير الأسبوع</span>
-          </button>
+          {onResetAllGamification && (
+            <button
+              onClick={() => setIsResetConfirmOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs font-bold transition-all"
+              title="تصفير شامل للعدادات والمستوى والـ XP"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>تصفير المستوى والعدادات</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Top 3 Interactive Feature Bento Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         
-        {/* Card 1: Weekly Target & Bonus (Points 6, 11) */}
+        {/* Card 1: Weekly Target & Bonus */}
         <div className="bento-card p-6 flex flex-col justify-between bg-gradient-to-br from-white to-sand-50 dark:from-stone-900 dark:to-stone-900/60">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-charcoal-muted dark:text-stone-400">التارجت الأسبوعي</span>
+              <span className="text-xs font-bold text-charcoal-muted dark:text-stone-400">التارجت الأسبوعي (المستوى {currentLevel})</span>
               <div className="w-8 h-8 rounded-xl bg-falcon-50 dark:bg-falcon-950/60 text-falcon-600 flex items-center justify-center">
                 <Target className="w-4 h-4" />
               </div>
@@ -136,7 +165,7 @@ export function GamificationView({
             </div>
             
             <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-1">
-              {targetPercent >= 100 ? '🎉 مبروك! حققتم تارجت الأسبوع' : `${targetXp - totalXp} XP متبقية للوصول للتارجت`}
+              {targetPercent >= 100 ? '🎉 مبروك! تم إنجاز التارجت' : totalXp === 0 ? 'العداد مصفّر جاهز للأسبوع الجديد' : `${targetXp - totalXp} XP متبقية للوصول للتارجت`}
             </p>
           </div>
 
@@ -154,7 +183,7 @@ export function GamificationView({
           </div>
         </div>
 
-        {/* Card 2: Bonus Pool Conversion (Point 11: حساب البونص) */}
+        {/* Card 2: Bonus Pool Conversion */}
         <div className="bento-card p-6 flex flex-col justify-between bg-gradient-to-br from-white to-sand-50 dark:from-stone-900 dark:to-stone-900/60">
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -184,16 +213,30 @@ export function GamificationView({
         <div className="bento-card p-6 flex flex-col justify-between bg-gradient-to-br from-white to-sand-50 dark:from-stone-900 dark:to-stone-900/60">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-charcoal-muted dark:text-stone-400">التتابع الإيجابي</span>
-              <div className="w-8 h-8 rounded-xl bg-falcon-50 dark:bg-falcon-950/60 text-falcon-600 flex items-center justify-center">
-                <Flame className="w-4 h-4 fill-falcon-600" />
+              <span className="text-xs font-bold text-charcoal-muted dark:text-stone-400">التتابع الإيجابي (الستريك)</span>
+              <div className="flex items-center gap-1">
+                {onUpdateStreak && (
+                  <button
+                    onClick={() => {
+                      setTempStreak(streakDays);
+                      setIsStreakModalOpen(true);
+                    }}
+                    className="p-1 rounded-lg hover:bg-sand-100 dark:hover:bg-stone-800 text-charcoal-muted hover:text-charcoal dark:text-stone-400"
+                    title="تعديل أيام الستريك"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <div className="w-8 h-8 rounded-xl bg-falcon-50 dark:bg-falcon-950/60 text-falcon-600 flex items-center justify-center">
+                  <Flame className="w-4 h-4 fill-falcon-600" />
+                </div>
               </div>
             </div>
 
             <div className="text-3xl font-black text-charcoal dark:text-stone-100 flex items-center gap-2">
               <span>{streakDays} أيام</span>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-falcon-50 dark:bg-falcon-950/60 text-falcon-600 dark:text-falcon-400 border border-falcon-100 dark:border-falcon-900">
-                مستمر 🔥
+                {streakDays > 0 ? 'مستمر 🔥' : 'مصفّر'}
               </span>
             </div>
             <p className="text-xs text-charcoal-muted dark:text-stone-400 mt-1">
@@ -209,75 +252,66 @@ export function GamificationView({
 
       </div>
 
-      {/* Team Quests */}
-      <div className="bento-card p-6">
-        <h3 className="text-base font-bold text-charcoal dark:text-stone-100 mb-4 flex items-center justify-between">
-          <span>تحديات ومهمات الأسبوع المشتركة</span>
-          <span className="text-xs font-normal text-charcoal-muted dark:text-stone-400">تمنح نقاط إضافية عند إتمامها</span>
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {quests.map((q) => {
-            const p = Math.min(100, Math.round((q.currentCount / q.targetCount) * 100));
-            return (
-              <div key={q.id} className="p-4 rounded-2xl bg-sand-50 dark:bg-stone-800/60 border border-sand-border dark:border-stone-700 flex flex-col justify-between gap-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs sm:text-sm font-bold text-charcoal dark:text-stone-100">{q.title}</h4>
-                  <span className="text-xs font-bold text-falcon-600 dark:text-falcon-400 bg-falcon-50 dark:bg-falcon-950/60 px-2 py-0.5 rounded-full">
-                    +{q.rewardXp} XP
-                  </span>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs font-semibold text-charcoal-muted dark:text-stone-400 mb-1">
-                    <span>الإنجاز: {q.currentCount} من {q.targetCount} {q.unit}</span>
-                    <span>{p}%</span>
-                  </div>
-                  <div className="w-full bg-sand-200 dark:bg-stone-700 h-2 rounded-full overflow-hidden">
-                    <div className="bg-falcon-600 h-full rounded-full transition-all duration-500" style={{ width: `${p}%` }} />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Transparent XP Ledger Table */}
       <div className="bento-card p-6">
         <h3 className="text-base font-bold text-charcoal dark:text-stone-100 mb-4 flex items-center justify-between">
-          <span>سجل النقاط الموثق (XP Ledger)</span>
-          <span className="text-xs font-normal text-charcoal-muted dark:text-stone-400">توثيق شفاف لكل مهمة وسكريبت</span>
+          <div className="flex items-center gap-2">
+            <span>سجل النقاط الموثق (XP Ledger)</span>
+            <span className="text-xs font-normal text-charcoal-muted dark:text-stone-400">({events.length} حركات موثقة)</span>
+          </div>
+          {events.length > 0 && (
+            <span className="text-xs text-charcoal-muted dark:text-stone-400">
+              يمكنك مسح أي عملية كُتبت بالخطأ
+            </span>
+          )}
         </h3>
 
-        <div className="divide-y divide-sand-border dark:divide-stone-800">
-          {events.map((ev) => (
-            <div key={ev.id} className="py-3.5 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${
-                  ev.xpAmount >= 0 
-                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400' 
-                    : 'bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400'
-                }`}>
-                  {ev.xpAmount >= 0 ? `+${ev.xpAmount}` : ev.xpAmount}
+        {events.length === 0 ? (
+          <div className="p-8 text-center text-xs text-charcoal-muted dark:text-stone-400 bg-sand-50 dark:bg-stone-800/40 rounded-2xl border border-sand-border dark:border-stone-800">
+            سجل النقاط مصفّر بالكامل حالياً. ستظهر هنا النقاط المكتسبة فور إنشاء سكريبتات، تسجيل أفكار، أو إنجاز مهام.
+          </div>
+        ) : (
+          <div className="divide-y divide-sand-border dark:divide-stone-800">
+            {events.map((ev) => (
+              <div key={ev.id} className="py-3.5 flex items-center justify-between gap-4 group">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${
+                    ev.xpAmount >= 0 
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400' 
+                      : 'bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400'
+                  }`}>
+                    {ev.xpAmount >= 0 ? `+${ev.xpAmount}` : ev.xpAmount}
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold text-charcoal dark:text-stone-100">{ev.description}</p>
+                    <span className="text-[10px] text-charcoal-muted dark:text-stone-400">
+                      {new Date(ev.createdAt).toLocaleString('ar-EG')}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs sm:text-sm font-bold text-charcoal dark:text-stone-100">{ev.description}</p>
-                  <span className="text-[10px] text-charcoal-muted dark:text-stone-400">
-                    {new Date(ev.createdAt).toLocaleString('ar-EG')}
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-xl border border-emerald-100 dark:border-emerald-900">
+                    موثق
                   </span>
+
+                  {onDeleteXpEvent && (
+                    <button
+                      onClick={() => onDeleteXpEvent(ev.id)}
+                      className="p-1 rounded-lg text-charcoal-muted hover:text-red-600 dark:text-stone-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
+                      title="مسح هذه الحركة من السجل"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
-
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-xl border border-emerald-100 dark:border-emerald-900">
-                موثق
-              </span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Manual XP Adjustment Modal (Point 8) */}
+      {/* Manual XP Adjustment Modal (إضافة / خصم / تعيين رقم محدد) */}
       {isAdjustModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div 
@@ -297,7 +331,7 @@ export function GamificationView({
             </div>
 
             <form onSubmit={handleAdjustSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setAdjustType('add')}
@@ -307,7 +341,7 @@ export function GamificationView({
                       : 'bg-sand-50 dark:bg-stone-800 text-charcoal dark:text-stone-300 border-sand-border dark:border-stone-700'
                   }`}
                 >
-                  إضافة نقاط (+)
+                  إضافة (+)
                 </button>
                 <button
                   type="button"
@@ -318,18 +352,29 @@ export function GamificationView({
                       : 'bg-sand-50 dark:bg-stone-800 text-charcoal dark:text-stone-300 border-sand-border dark:border-stone-700'
                   }`}
                 >
-                  خصم نقاط (-)
+                  خصم (-)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdjustType('set')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    adjustType === 'set'
+                      ? 'bg-falcon-600 text-white border-falcon-600 shadow-xs'
+                      : 'bg-sand-50 dark:bg-stone-800 text-charcoal dark:text-stone-300 border-sand-border dark:border-stone-700'
+                  }`}
+                >
+                  تعيين رقم (=)
                 </button>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-charcoal dark:text-stone-200 mb-1">
-                  كمية النقاط
+                  {adjustType === 'set' ? 'الرصيد الجديد المطلوب تماماً' : 'كمية النقاط'}
                 </label>
                 <input
                   type="number"
-                  min="1"
-                  max="500"
+                  min="0"
+                  max="5000"
                   value={adjustAmount}
                   onChange={(e) => setAdjustAmount(Number(e.target.value))}
                   required
@@ -343,7 +388,7 @@ export function GamificationView({
                 </label>
                 <input
                   type="text"
-                  placeholder="مثال: بونص إضافي لحملة تيك توك ناجحة..."
+                  placeholder="مثال: تصحيح رصيد، بونص إضافي، تعديل خطأ كتابي..."
                   value={adjustReason}
                   onChange={(e) => setAdjustReason(e.target.value)}
                   required
@@ -355,7 +400,7 @@ export function GamificationView({
                 <button
                   type="button"
                   onClick={() => setIsAdjustModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-sand-border text-xs font-bold"
+                  className="px-4 py-2 rounded-xl border border-sand-border dark:border-stone-700 text-xs font-bold text-charcoal dark:text-stone-300"
                 >
                   إلغاء
                 </button>
@@ -367,6 +412,104 @@ export function GamificationView({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Streak Editor Modal */}
+      {isStreakModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="bg-white dark:bg-stone-900 border border-sand-border dark:border-stone-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-sand-border dark:border-stone-800 mb-3">
+              <h3 className="text-base font-bold text-charcoal dark:text-stone-100">
+                تعديل عداد الأيام (Streak)
+              </h3>
+              <button
+                onClick={() => setIsStreakModalOpen(false)}
+                className="p-1 rounded-xl text-stone-400 hover:text-stone-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleStreakSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-charcoal dark:text-stone-200 mb-1">
+                  عدد الأيام المتتالية
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="365"
+                  value={tempStreak}
+                  onChange={(e) => setTempStreak(Number(e.target.value))}
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-sand-50 dark:bg-stone-800 border border-sand-border dark:border-stone-700 text-charcoal dark:text-stone-100 text-base font-bold text-center"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsStreakModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-sand-border dark:border-stone-700 text-xs font-bold text-charcoal dark:text-stone-300"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-falcon-600 hover:bg-falcon-700 text-white text-xs font-bold shadow-md"
+                >
+                  حفظ الأيام
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Confirmation Modal */}
+      {isResetConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div 
+            className="w-full max-w-sm bg-white dark:bg-stone-900 rounded-3xl border border-sand-border dark:border-stone-800 p-6 shadow-2xl text-center space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 mx-auto flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-charcoal dark:text-stone-100">
+                تصفير شامل للعدادات والمستوى؟
+              </h3>
+              <p className="text-xs text-charcoal-muted dark:text-stone-400 mt-1">
+                سيتم مسح سجل النقاط وإعادة المستوى إلى 1 ورصيد الـ XP إلى (0)، وتصفير الستريك للبدء من جديد تماماً.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsResetConfirmOpen(false)}
+                className="px-4 py-2 rounded-xl border border-sand-border dark:border-stone-700 text-xs font-bold text-charcoal dark:text-stone-300"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onResetAllGamification) {
+                    onResetAllGamification();
+                  }
+                  setIsResetConfirmOpen(false);
+                }}
+                className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-sm"
+              >
+                تأكيد التصفير
+              </button>
+            </div>
           </div>
         </div>
       )}

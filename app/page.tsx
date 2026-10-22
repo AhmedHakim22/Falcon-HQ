@@ -21,6 +21,7 @@ import {
   saveStoredScripts, 
   getStoredOutcomes, 
   saveStoredOutcomes, 
+  clearStoredOutcomes,
   getStoredTasks,
   saveStoredTasks,
   getStoredChatThoughts,
@@ -28,6 +29,9 @@ import {
   getStoredXpEvents, 
   addXpEvent,
   saveStoredXpEvents,
+  clearStoredXpEvents,
+  getStoredStreak,
+  saveStoredStreak,
   getStoredActiveUser,
   saveStoredActiveUser,
   getStoredTheme,
@@ -42,7 +46,11 @@ import {
   syncIdeaToSupabase, 
   syncScriptToSupabase, 
   syncOutcomeToSupabase, 
+  deleteOutcomeFromSupabase,
+  clearAllOutcomesFromSupabase,
   syncXpEventToSupabase, 
+  deleteXpEventFromSupabase,
+  clearAllXpEventsFromSupabase,
   deleteIdeaFromSupabase,
   restoreIdeaInSupabase,
   purgeIdeaPermanentlyFromSupabase,
@@ -83,7 +91,7 @@ export default function FalconHQApp() {
   const [chatThoughts, setChatThoughts] = useState<ChatThought[]>([]);
   const [xpEvents, setXpEvents] = useState<XpEvent[]>([]);
   const [performance, setPerformance] = useState<PerformanceConfig>(getStoredPerformance());
-  const [streakDays, setStreakDays] = useState<number>(3);
+  const [streakDays, setStreakDays] = useState<number>(0);
   
   // Modals & Active selections
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
@@ -129,6 +137,7 @@ export default function FalconHQApp() {
     setChatThoughts(getStoredChatThoughts());
     setXpEvents(getStoredXpEvents());
     setPerformance(getStoredPerformance());
+    setStreakDays(getStoredStreak());
     
     // Restore preferred user persona (أحمد / معاذ)
     const savedUser = getStoredActiveUser();
@@ -613,6 +622,60 @@ export default function FalconHQApp() {
     syncXpEventToSupabase(ev);
   };
 
+  const handleSetExactXp = (exactXp: number, reason: string) => {
+    const currentTotal = xpEvents.reduce((acc, ev) => acc + ev.xpAmount, 0);
+    const diff = exactXp - currentTotal;
+    if (diff === 0) return;
+    const ev = addXpEvent({
+      eventType: 'manual_adjustment',
+      xpAmount: diff,
+      description: `تعيين الرصيد إلى (${exactXp} XP): ${reason}`,
+    });
+    setXpEvents((prev) => [ev, ...prev]);
+    syncXpEventToSupabase(ev);
+  };
+
+  const handleResetAllGamification = () => {
+    setXpEvents([]);
+    clearStoredXpEvents();
+    clearAllXpEventsFromSupabase();
+    setStreakDays(0);
+    saveStoredStreak(0);
+  };
+
+  const handleUpdateStreak = (days: number) => {
+    setStreakDays(days);
+    saveStoredStreak(days);
+  };
+
+  const handleDeleteXpEvent = (eventId: string) => {
+    const updated = xpEvents.filter((e) => e.id !== eventId);
+    setXpEvents(updated);
+    saveStoredXpEvents(updated);
+    deleteXpEventFromSupabase(eventId);
+  };
+
+  // Handlers: Business Outcomes Edit / Delete / Reset
+  const handleUpdateOutcome = (updatedOutcome: BusinessOutcome) => {
+    const updated = outcomes.map((o) => (o.id === updatedOutcome.id ? updatedOutcome : o));
+    setOutcomes(updated);
+    saveStoredOutcomes(updated);
+    syncOutcomeToSupabase(updatedOutcome);
+  };
+
+  const handleDeleteOutcome = (outcomeId: string) => {
+    const updated = outcomes.filter((o) => o.id !== outcomeId);
+    setOutcomes(updated);
+    saveStoredOutcomes(updated);
+    deleteOutcomeFromSupabase(outcomeId);
+  };
+
+  const handleResetAllOutcomes = () => {
+    setOutcomes([]);
+    clearStoredOutcomes();
+    clearAllOutcomesFromSupabase();
+  };
+
   // Handlers: User Change
   const handleUserChange = (user: string) => {
     setCurrentUser(user);
@@ -733,6 +796,9 @@ export default function FalconHQApp() {
               setXpEvents((prev) => [ev, ...prev]);
               syncXpEventToSupabase(ev);
             }}
+            onUpdateOutcome={handleUpdateOutcome}
+            onDeleteOutcome={handleDeleteOutcome}
+            onResetAllOutcomes={handleResetAllOutcomes}
           />
         )}
 
@@ -748,7 +814,11 @@ export default function FalconHQApp() {
               saveStoredPerformance(newConf);
             }}
             onResetWeeklyXp={handleResetWeeklyXp}
+            onResetAllGamification={handleResetAllGamification}
             onAdjustXp={handleAdjustXp}
+            onSetExactXp={handleSetExactXp}
+            onDeleteXpEvent={handleDeleteXpEvent}
+            onUpdateStreak={handleUpdateStreak}
             currentUser={currentUser}
           />
         )}
