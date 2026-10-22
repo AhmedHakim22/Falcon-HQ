@@ -24,7 +24,7 @@ interface BentoGridHomeProps {
   outcomes: BusinessOutcome[];
   quests: TeamQuest[];
   onOpenQuickCapture: () => void;
-  onNavigateToTab: (tab: 'ideas' | 'scripts' | 'results' | 'gamification') => void;
+  onNavigateToTab: (tab: 'home' | 'ideas' | 'scripts' | 'tasks' | 'scratchpad' | 'results' | 'gamification') => void;
   onSelectScript: (script: Script) => void;
   onSelectIdea: (idea: Idea) => void;
   currentUser: string;
@@ -174,18 +174,18 @@ export function BentoGridHome({
                   <div
                     key={s.id}
                     onClick={() => onSelectScript(s)}
-                    className="p-3 rounded-2xl bg-sand-50 hover:bg-sand-100 border border-sand-border cursor-pointer transition-all"
+                    className="p-3 rounded-2xl bg-sand-50 dark:bg-stone-800/80 hover:bg-sand-100 dark:hover:bg-stone-800 border border-sand-border dark:border-stone-700 cursor-pointer transition-all"
                   >
-                    <p className="text-xs font-bold text-charcoal line-clamp-1">{s.title}</p>
-                    <div className="flex items-center justify-between text-[11px] text-charcoal-muted mt-1">
+                    <p className="text-xs font-bold text-charcoal dark:text-stone-100 break-words whitespace-normal leading-snug">{s.title}</p>
+                    <div className="flex items-center justify-between text-[11px] text-charcoal-muted dark:text-stone-400 mt-1">
                       <span>{s.framework}</span>
-                      <span className="text-falcon-600 font-semibold">{s.estimatedDurationSeconds} ثانية</span>
+                      <span className="text-falcon-600 dark:text-falcon-400 font-semibold">{s.estimatedDurationSeconds} ثانية</span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="mt-4 p-4 rounded-2xl bg-sand-50 text-center text-xs text-charcoal-muted">
+              <div className="mt-4 p-4 rounded-2xl bg-sand-50 dark:bg-stone-800/60 text-center text-xs text-charcoal-muted dark:text-stone-400">
                 مفيش سكريبتات جاهزة حالياً. ابدأ واحد من بنك الأفكار!
               </div>
             )}
@@ -193,7 +193,7 @@ export function BentoGridHome({
 
           <button
             onClick={() => onNavigateToTab('scripts')}
-            className="mt-4 pt-3 border-t border-sand-border flex items-center justify-between text-xs font-bold text-charcoal hover:text-falcon-600 transition-colors"
+            className="mt-4 pt-3 border-t border-sand-border dark:border-stone-800 flex items-center justify-between text-xs font-bold text-charcoal dark:text-stone-300 hover:text-falcon-600 transition-colors"
           >
             <span>استعراض كل السكريبتات</span>
             <ChevronLeft className="w-4 h-4" />
@@ -204,16 +204,16 @@ export function BentoGridHome({
         <div className="bento-card p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-2xl bg-gold-light text-gold flex items-center justify-center">
+              <div className="w-9 h-9 rounded-2xl bg-gold-light dark:bg-amber-950/60 text-gold flex items-center justify-center">
                 <Lightbulb className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-gold-light text-gold-dark border border-amber-200">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-gold-light dark:bg-amber-950/60 text-gold-dark dark:text-amber-400 border border-amber-200 dark:border-amber-900">
                 {highPriorityIdeas.length} أفكار ذهبية
               </span>
             </div>
 
-            <h3 className="text-base font-bold text-charcoal">أعلى الأفكار أولوية</h3>
-            <p className="text-xs text-charcoal-muted mt-1">
+            <h3 className="text-base font-bold text-charcoal dark:text-stone-100">أعلى الأفكار أولوية</h3>
+            <p className="text-xs text-charcoal-muted dark:text-stone-400 mt-1">
               أفكار تم تقييمها وتجاوزت 80 نقطة بحسب معادلة الانتشار وقيمة العميل.
             </p>
 
@@ -222,11 +222,11 @@ export function BentoGridHome({
                 <div
                   key={idea.id}
                   onClick={() => onSelectIdea(idea)}
-                  className="p-3 rounded-2xl bg-sand-50 hover:bg-sand-100 border border-sand-border cursor-pointer transition-all"
+                  className="p-3 rounded-2xl bg-sand-50 dark:bg-stone-800/80 hover:bg-sand-100 dark:hover:bg-stone-800 border border-sand-border dark:border-stone-700 cursor-pointer transition-all"
                 >
-                  <p className="text-xs font-bold text-charcoal line-clamp-1">{idea.title}</p>
-                  <div className="flex items-center justify-between text-[11px] text-charcoal-muted mt-1">
-                    <span className="text-falcon-600 font-bold">{idea.totalPriorityScore} / 100</span>
+                  <p className="text-xs font-bold text-charcoal dark:text-stone-100 break-words whitespace-normal leading-snug">{idea.title}</p>
+                  <div className="flex items-center justify-between text-[11px] text-charcoal-muted dark:text-stone-400 mt-1">
+                    <span className="text-falcon-600 dark:text-falcon-400 font-bold">{idea.totalPriorityScore} / 100</span>
                     <span>بواسطة {idea.creatorName}</span>
                   </div>
                 </div>
@@ -236,7 +236,7 @@ export function BentoGridHome({
 
           <button
             onClick={() => onNavigateToTab('ideas')}
-            className="mt-4 pt-3 border-t border-sand-border flex items-center justify-between text-xs font-bold text-charcoal hover:text-falcon-600 transition-colors"
+            className="mt-4 pt-3 border-t border-sand-border dark:border-stone-800 flex items-center justify-between text-xs font-bold text-charcoal dark:text-stone-300 hover:text-falcon-600 transition-colors"
           >
             <span>افتح بنك الأفكار الكامل</span>
             <ChevronLeft className="w-4 h-4" />

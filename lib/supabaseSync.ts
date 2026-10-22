@@ -178,6 +178,30 @@ export async function deleteIdeaFromSupabase(ideaId: string) {
   }
 }
 
+export async function restoreIdeaInSupabase(ideaId: string) {
+  if (!supabase || !isSupabaseConfigured) return;
+  try {
+    const { error } = await supabase.from('ideas').update({ is_deleted: false }).eq('id', ideaId);
+    if (!error) {
+      broadcastDataChange('ideas');
+    }
+  } catch (err) {
+    console.warn('Restore idea sync error:', err);
+  }
+}
+
+export async function purgeIdeaPermanentlyFromSupabase(ideaId: string) {
+  if (!supabase || !isSupabaseConfigured) return;
+  try {
+    const { error } = await supabase.from('ideas').delete().eq('id', ideaId);
+    if (!error) {
+      broadcastDataChange('ideas');
+    }
+  } catch (err) {
+    console.warn('Purge idea error:', err);
+  }
+}
+
 export async function syncScriptToSupabase(script: Script) {
   if (!supabase || !isSupabaseConfigured) return;
   try {
@@ -194,7 +218,7 @@ export async function syncScriptToSupabase(script: Script) {
       reviewer_name: script.reviewerName || null,
       estimated_duration_seconds: script.estimatedDurationSeconds,
       word_count: script.wordCount,
-      is_deleted: false,
+      is_deleted: script.isDeleted ?? false,
       updated_at: new Date().toISOString(),
     };
 
@@ -206,6 +230,30 @@ export async function syncScriptToSupabase(script: Script) {
     }
   } catch (err) {
     console.warn('Network sync paused (using local buffer):', err);
+  }
+}
+
+export async function deleteScriptFromSupabase(scriptId: string) {
+  if (!supabase || !isSupabaseConfigured) return;
+  try {
+    const { error } = await supabase.from('scripts').update({ is_deleted: true }).eq('id', scriptId);
+    if (!error) {
+      broadcastDataChange('scripts');
+    }
+  } catch (err) {
+    console.warn('Delete script sync error:', err);
+  }
+}
+
+export async function restoreScriptInSupabase(scriptId: string) {
+  if (!supabase || !isSupabaseConfigured) return;
+  try {
+    const { error } = await supabase.from('scripts').update({ is_deleted: false }).eq('id', scriptId);
+    if (!error) {
+      broadcastDataChange('scripts');
+    }
+  } catch (err) {
+    console.warn('Restore script sync error:', err);
   }
 }
 

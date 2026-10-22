@@ -5,10 +5,15 @@ import { Navbar } from '@/components/Navbar';
 import { BentoGridHome } from '@/components/BentoGridHome';
 import { IdeaBankView } from '@/components/IdeaBankView';
 import { ScriptStudioView } from '@/components/ScriptStudioView';
+import { TasksView } from '@/components/TasksView';
+import { ChatScratchpadView } from '@/components/ChatScratchpadView';
 import { BusinessOutcomesView } from '@/components/BusinessOutcomesView';
 import { GamificationView } from '@/components/GamificationView';
 import { QuickCaptureModal } from '@/components/QuickCaptureModal';
+import { EditIdeaModal } from '@/components/EditIdeaModal';
 import { PriorityModal } from '@/components/PriorityModal';
+import { TrashBinModal } from '@/components/TrashBinModal';
+import { UndoToast } from '@/components/UndoToast';
 import { 
   getStoredIdeas, 
   saveStoredIdeas, 
@@ -16,10 +21,20 @@ import {
   saveStoredScripts, 
   getStoredOutcomes, 
   saveStoredOutcomes, 
+  getStoredTasks,
+  saveStoredTasks,
+  getStoredChatThoughts,
+  saveStoredChatThoughts,
   getStoredXpEvents, 
   addXpEvent,
+  saveStoredXpEvents,
   getStoredActiveUser,
   saveStoredActiveUser,
+  getStoredTheme,
+  saveStoredTheme,
+  getStoredPerformance,
+  saveStoredPerformance,
+  downloadBackupJSON,
   INITIAL_TEAM_QUESTS 
 } from '@/lib/storage';
 import { 
@@ -28,31 +43,77 @@ import {
   syncScriptToSupabase, 
   syncOutcomeToSupabase, 
   syncXpEventToSupabase, 
-  deleteIdeaFromSupabase, 
+  deleteIdeaFromSupabase,
+  restoreIdeaInSupabase,
+  purgeIdeaPermanentlyFromSupabase,
+  deleteScriptFromSupabase,
+  restoreScriptInSupabase,
   subscribeToRealtimeChanges, 
   generateUUID 
 } from '@/lib/supabaseSync';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
-import { Idea, Script, BusinessOutcome, XpEvent, IdeaStatus, ScriptStatus } from '@/lib/types';
+import { 
+  Idea, 
+  Script, 
+  BusinessOutcome, 
+  OperationalTask, 
+  ChatThought, 
+  XpEvent, 
+  PerformanceConfig, 
+  IdeaStatus, 
+  ScriptStatus,
+  TaskStatus 
+} from '@/lib/types';
 import { calculatePriorityScore } from '@/lib/priority';
 import { getInitialSectionsForFramework } from '@/lib/frameworks';
 import { Plus } from 'lucide-react';
 
 export default function FalconHQApp() {
-  const [activeTab, setActiveTab] = useState<'home' | 'ideas' | 'scripts' | 'results' | 'gamification'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'ideas' | 'scripts' | 'tasks' | 'scratchpad' | 'results' | 'gamification'>('home');
   const [currentUser, setCurrentUser] = useState<string>('أحمد');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   
   // App Data State
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [scripts, setScripts] = useState<Script[]>([]);
   const [outcomes, setOutcomes] = useState<BusinessOutcome[]>([]);
+  const [tasks, setTasks] = useState<OperationalTask[]>([]);
+  const [chatThoughts, setChatThoughts] = useState<ChatThought[]>([]);
   const [xpEvents, setXpEvents] = useState<XpEvent[]>([]);
+  const [performance, setPerformance] = useState<PerformanceConfig>(getStoredPerformance());
   const [streakDays, setStreakDays] = useState<number>(3);
   
   // Modals & Active selections
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
   const [priorityModalIdea, setPriorityModalIdea] = useState<Idea | null>(null);
+  const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
   const [activeScript, setActiveScript] = useState<Script | null>(null);
+  const [isTrashBinOpen, setIsTrashBinOpen] = useState(false);
+
+  // Undo Toast state (Points 4 & 5)
+  const [undoToast, setUndoToast] = useState<{ message: string; undoAction: () => void } | null>(null);
+
+  // Theme application
+  useEffect(() => {
+    const savedTheme = getStoredTheme();
+    setTheme(savedTheme);
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const handleToggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    saveStoredTheme(nextTheme);
+    if (nextTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   // Hydrate from LocalStorage first, then fetch live from Supabase & subscribe to Realtime
   useEffect(() => {
@@ -62,7 +123,10 @@ export default function FalconHQApp() {
     setScripts(initialScripts);
     if (initialScripts.length > 0) setActiveScript(initialScripts[0]);
     setOutcomes(getStoredOutcomes());
+    setTasks(getStoredTasks());
+    setChatThoughts(getStoredChatThoughts());
     setXpEvents(getStoredXpEvents());
+    setPerformance(getStoredPerformance());
     
     // Restore preferred user persona (أحمد / معاذ)
     const savedUser = getStoredActiveUser();
@@ -103,17 +167,16 @@ export default function FalconHQApp() {
     // Initial fetch from Supabase
     refreshData();
 
-    // Realtime Listener: updates immediately whenever Ahmed or Moaz saves anything
+    // Realtime Listener
     const unsubscribe = subscribeToRealtimeChanges(() => {
       refreshData();
     });
 
-    // Background Heartbeat Polling (every 6 seconds) for rock-solid sync across mobile & desktop
+    // Background Heartbeat Polling
     const pollInterval = setInterval(() => {
       refreshData();
     }, 6000);
 
-    // Instant sync when switching back to tab or unlocking mobile phone
     const handleFocusSync = () => {
       if (document.visibilityState === 'visible') {
         refreshData();
@@ -134,6 +197,12 @@ export default function FalconHQApp() {
   // Compute total XP
   const totalXp = xpEvents.reduce((acc, ev) => acc + ev.xpAmount, 0);
 
+  // Deleted items count for Trash Bin badge
+  const deletedIdeas = ideas.filter((i) => i.isDeleted);
+  const deletedScripts = scripts.filter((s) => s.isDeleted);
+  const deletedTasks = tasks.filter((t) => t.isDeleted);
+  const totalDeletedCount = deletedIdeas.length + deletedScripts.length + deletedTasks.length;
+
   // Handlers: Save Idea
   const handleSaveIdea = (newIdeaData: Partial<Idea>, nextAction: 'start_script' | 'save_inbox' | 'action_plan') => {
     const newId = generateUUID();
@@ -141,10 +210,12 @@ export default function FalconHQApp() {
       id: newId,
       title: newIdeaData.title || 'فكرة جديدة',
       category: newIdeaData.category || 'content',
+      ideaType: newIdeaData.ideaType || 'content',
       status: newIdeaData.status || 'inbox',
       sourceUrl: newIdeaData.sourceUrl || '',
       notes: newIdeaData.notes || '',
-      creatorName: currentUser,
+      voiceNoteBase64: newIdeaData.voiceNoteBase64,
+      creatorName: newIdeaData.creatorName || currentUser,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -163,10 +234,53 @@ export default function FalconHQApp() {
     setXpEvents((prev) => [event, ...prev]);
     syncXpEventToSupabase(event);
 
-    // Handle Route
     if (nextAction === 'start_script') {
       handleStartScriptFromIdea(newIdea);
     }
+  };
+
+  // Handlers: Update Existing Idea (Point 7)
+  const handleUpdateIdea = (updatedIdea: Idea) => {
+    const updated = ideas.map((i) => (i.id === updatedIdea.id ? updatedIdea : i));
+    setIdeas(updated);
+    saveStoredIdeas(updated);
+    syncIdeaToSupabase(updatedIdea);
+  };
+
+  // Handlers: Soft Delete Idea (Points 4 & 5)
+  const handleDeleteIdea = (ideaId: string) => {
+    const target = ideas.find((i) => i.id === ideaId);
+    if (!target) return;
+
+    const updated = ideas.map((i) => (i.id === ideaId ? { ...i, isDeleted: true, deletedAt: new Date().toISOString() } : i));
+    setIdeas(updated);
+    saveStoredIdeas(updated);
+    deleteIdeaFromSupabase(ideaId);
+
+    // Undo Toast
+    setUndoToast({
+      message: `تم نقل الفكرة "${target.title.slice(0, 30)}..." لسلة المهملات`,
+      undoAction: () => {
+        handleRestoreIdea(ideaId);
+        setUndoToast(null);
+      },
+    });
+  };
+
+  // Handlers: Restore Idea from Trash
+  const handleRestoreIdea = (ideaId: string) => {
+    const updated = ideas.map((i) => (i.id === ideaId ? { ...i, isDeleted: false, deletedAt: undefined } : i));
+    setIdeas(updated);
+    saveStoredIdeas(updated);
+    restoreIdeaInSupabase(ideaId);
+  };
+
+  // Handlers: Purge Idea Permanently
+  const handlePurgeIdea = (ideaId: string) => {
+    const updated = ideas.filter((i) => i.id !== ideaId);
+    setIdeas(updated);
+    saveStoredIdeas(updated);
+    purgeIdeaPermanentlyFromSupabase(ideaId);
   };
 
   // Handlers: Start Script from Idea
@@ -232,7 +346,6 @@ export default function FalconHQApp() {
     const updatedIdea = updatedIdeas.find((i) => i.id === ideaId);
     if (updatedIdea) syncIdeaToSupabase(updatedIdea);
 
-    // Award XP
     const event = addXpEvent({
       eventType: 'idea_rated',
       xpAmount: 5,
@@ -286,43 +399,217 @@ export default function FalconHQApp() {
     }
   };
 
-  // Handlers: Delete Idea
-  const handleDeleteIdea = (ideaId: string) => {
-    const updated = ideas.filter((i) => i.id !== ideaId);
-    setIdeas(updated);
-    saveStoredIdeas(updated);
-    deleteIdeaFromSupabase(ideaId);
+  // Handlers: Soft Delete Script
+  const handleDeleteScript = (scriptId: string) => {
+    const target = scripts.find((s) => s.id === scriptId);
+    if (!target) return;
+
+    const updated = scripts.map((s) => (s.id === scriptId ? { ...s, isDeleted: true, deletedAt: new Date().toISOString() } : s));
+    setScripts(updated);
+    saveStoredScripts(updated);
+    deleteScriptFromSupabase(scriptId);
+
+    setUndoToast({
+      message: `تم نقل السكريبت "${target.title.slice(0, 30)}..." لسلة المهملات`,
+      undoAction: () => {
+        handleRestoreScript(scriptId);
+        setUndoToast(null);
+      },
+    });
   };
 
-  // Handlers: Add Outcome
-  const handleAddOutcome = (newOutcomeData: Omit<BusinessOutcome, 'id' | 'recordedAt'>) => {
-    const newOutcome: BusinessOutcome = {
-      ...newOutcomeData,
-      id: generateUUID(),
-      recordedAt: new Date().toISOString(),
-    };
-    const updated = [newOutcome, ...outcomes];
-    setOutcomes(updated);
-    saveStoredOutcomes(updated);
-    syncOutcomeToSupabase(newOutcome);
+  const handleRestoreScript = (scriptId: string) => {
+    const updated = scripts.map((s) => (s.id === scriptId ? { ...s, isDeleted: false, deletedAt: undefined } : s));
+    setScripts(updated);
+    saveStoredScripts(updated);
+    restoreScriptInSupabase(scriptId);
+  };
 
+  const handlePurgeScript = (scriptId: string) => {
+    const updated = scripts.filter((s) => s.id !== scriptId);
+    setScripts(updated);
+    saveStoredScripts(updated);
+  };
+
+  // Handlers: Operational Tasks (Points 3, 11, 14)
+  const handleAddTask = (taskData: Omit<OperationalTask, 'id' | 'createdAt'>) => {
+    const newTask: OperationalTask = {
+      ...taskData,
+      id: generateUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [newTask, ...tasks];
+    setTasks(updated);
+    saveStoredTasks(updated);
+  };
+
+  const handleUpdateTaskStatus = (taskId: string, status: TaskStatus) => {
+    const target = tasks.find((t) => t.id === taskId);
+    const updated = tasks.map((t) => {
+      if (t.id === taskId) {
+        return {
+          ...t,
+          status,
+          completedAt: status === 'done' ? new Date().toISOString() : undefined,
+        };
+      }
+      return t;
+    });
+    setTasks(updated);
+    saveStoredTasks(updated);
+
+    if (status === 'done' && target && target.status !== 'done') {
+      const ev = addXpEvent({
+        eventType: 'task_completed',
+        xpAmount: target.xpReward || 15,
+        description: `إتمام مهمة تشغيلية: ${target.title}`,
+      });
+      setXpEvents((prev) => [ev, ...prev]);
+      syncXpEventToSupabase(ev);
+    }
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    const target = tasks.find((t) => t.id === taskId);
+    if (!target) return;
+
+    const updated = tasks.map((t) => (t.id === taskId ? { ...t, isDeleted: true, deletedAt: new Date().toISOString() } : t));
+    setTasks(updated);
+    saveStoredTasks(updated);
+
+    setUndoToast({
+      message: `تم نقل المهمة "${target.title.slice(0, 30)}..." لسلة المهملات`,
+      undoAction: () => {
+        handleRestoreTask(taskId);
+        setUndoToast(null);
+      },
+    });
+  };
+
+  const handleRestoreTask = (taskId: string) => {
+    const updated = tasks.map((t) => (t.id === taskId ? { ...t, isDeleted: false, deletedAt: undefined } : t));
+    setTasks(updated);
+    saveStoredTasks(updated);
+  };
+
+  const handlePurgeTask = (taskId: string) => {
+    const updated = tasks.filter((t) => t.id !== taskId);
+    setTasks(updated);
+    saveStoredTasks(updated);
+  };
+
+  // Handlers: Empty Trash Bin Completely
+  const handleEmptyTrash = () => {
+    const purgedIdeas = ideas.filter((i) => !i.isDeleted);
+    const purgedScripts = scripts.filter((s) => !s.isDeleted);
+    const purgedTasks = tasks.filter((t) => !t.isDeleted);
+    setIdeas(purgedIdeas);
+    saveStoredIdeas(purgedIdeas);
+    setScripts(purgedScripts);
+    saveStoredScripts(purgedScripts);
+    setTasks(purgedTasks);
+    saveStoredTasks(purgedTasks);
+    setIsTrashBinOpen(false);
+  };
+
+  // Handlers: Chat Scratchpad (Points 9 & 10)
+  const handleAddChatThought = (thoughtData: Omit<ChatThought, 'id' | 'createdAt'>) => {
+    const newThought: ChatThought = {
+      ...thoughtData,
+      id: generateUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...chatThoughts, newThought];
+    setChatThoughts(updated);
+    saveStoredChatThoughts(updated);
+  };
+
+  const handleConvertThoughtToIdea = (thought: ChatThought) => {
+    const title = thought.text || 'فكرة من تسجيل صوتي';
+    handleSaveIdea({
+      title,
+      notes: thought.text ? `مستخلصة من شات الأفكار: ${thought.text}` : '',
+      voiceNoteBase64: thought.audioBase64,
+      creatorName: thought.sender,
+    }, 'save_inbox');
+
+    // Mark as converted
+    const updated = chatThoughts.map((t) => 
+      t.id === thought.id 
+        ? { ...t, convertedTo: { type: 'idea' as const, title: title.slice(0, 30) } } 
+        : t
+    );
+    setChatThoughts(updated);
+    saveStoredChatThoughts(updated);
+    setActiveTab('ideas');
+  };
+
+  const handleConvertThoughtToTask = (thought: ChatThought) => {
+    const title = thought.text || 'مهمة من التسجيل الصوتي';
+    handleAddTask({
+      title,
+      category: 'daily_recurring',
+      status: 'todo',
+      assigneeName: thought.sender as any,
+      priority: 'high',
+      xpReward: 15,
+      notes: thought.text,
+    });
+
+    const updated = chatThoughts.map((t) => 
+      t.id === thought.id 
+        ? { ...t, convertedTo: { type: 'task' as const, title: title.slice(0, 30) } } 
+        : t
+    );
+    setChatThoughts(updated);
+    saveStoredChatThoughts(updated);
+    setActiveTab('tasks');
+  };
+
+  const handleDeleteThought = (id: string) => {
+    const updated = chatThoughts.filter((t) => t.id !== id);
+    setChatThoughts(updated);
+    saveStoredChatThoughts(updated);
+  };
+
+  // Handlers: Gamification Reset & Adjustment (Points 6, 8, 11)
+  const handleResetWeeklyXp = () => {
+    if (!confirm('هل تريد تصفير نقاط الأسبوع لبدء أسبوع جديد وتحديث البونص؟')) return;
+    const newConf: PerformanceConfig = {
+      ...performance,
+      lastResetDate: new Date().toISOString(),
+    };
+    setPerformance(newConf);
+    saveStoredPerformance(newConf);
+
+    // Keep streak, reset weekly XP
+    const resetEvent = addXpEvent({
+      eventType: 'manual_adjustment',
+      xpAmount: 0,
+      description: '🔄 تصفير نقاط الأسبوع وبدء تارجت جديد',
+    });
+    setXpEvents([resetEvent]);
+    saveStoredXpEvents([resetEvent]);
+  };
+
+  const handleAdjustXp = (amount: number, reason: string) => {
     const ev = addXpEvent({
-      eventType: 'outcome_recorded',
-      xpAmount: 15,
-      description: `توثيق نتائج فيديو: ${newOutcome.ordersAttributed} طلب (${newOutcome.revenueAttributed.toLocaleString()} ج.م)`,
+      eventType: 'manual_adjustment',
+      xpAmount: amount,
+      description: `تعديل يدوي (${amount >= 0 ? '+' : ''}${amount} XP): ${reason}`,
     });
     setXpEvents((prev) => [ev, ...prev]);
     syncXpEventToSupabase(ev);
   };
 
-  // Handle User Change (Persisted in LocalStorage)
+  // Handlers: User Change
   const handleUserChange = (user: string) => {
     setCurrentUser(user);
     saveStoredActiveUser(user);
   };
 
   return (
-    <div className="min-h-screen bg-sand-100 flex flex-col pb-24 md:pb-12">
+    <div className="min-h-screen bg-sand-100 dark:bg-stone-950 text-charcoal dark:text-stone-100 flex flex-col pb-24 md:pb-12 transition-colors">
       
       {/* Top Navbar */}
       <Navbar
@@ -333,14 +620,19 @@ export default function FalconHQApp() {
         totalXp={totalXp}
         streakDays={streakDays}
         onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+        onDownloadBackup={downloadBackupJSON}
+        onOpenTrashBin={() => setIsTrashBinOpen(true)}
+        deletedCount={totalDeletedCount}
       />
 
       {/* Main View Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
         {activeTab === 'home' && (
           <BentoGridHome
-            ideas={ideas}
-            scripts={scripts}
+            ideas={ideas.filter((i) => !i.isDeleted)}
+            scripts={scripts.filter((s) => !s.isDeleted)}
             outcomes={outcomes}
             quests={INITIAL_TEAM_QUESTS}
             onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
@@ -361,6 +653,7 @@ export default function FalconHQApp() {
             ideas={ideas}
             onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
             onOpenPriorityModal={(idea) => setPriorityModalIdea(idea)}
+            onEditIdea={(idea) => setEditingIdea(idea)}
             onStartScriptFromIdea={handleStartScriptFromIdea}
             onDeleteIdea={handleDeleteIdea}
             onUpdateStatus={(id, status) => {
@@ -370,13 +663,14 @@ export default function FalconHQApp() {
               const target = updated.find((i) => i.id === id);
               if (target) syncIdeaToSupabase(target);
             }}
+            currentUser={currentUser}
           />
         )}
 
         {activeTab === 'scripts' && (
           <ScriptStudioView
             activeScript={activeScript}
-            scripts={scripts}
+            scripts={scripts.filter((s) => !s.isDeleted)}
             onSelectScript={(script) => setActiveScript(script)}
             onSaveScript={handleSaveScript}
             onUpdateStatus={handleUpdateScriptStatus}
@@ -384,11 +678,50 @@ export default function FalconHQApp() {
           />
         )}
 
+        {activeTab === 'tasks' && (
+          <TasksView
+            tasks={tasks}
+            onAddTask={handleAddTask}
+            onUpdateTaskStatus={handleUpdateTaskStatus}
+            onDeleteTask={handleDeleteTask}
+            currentUser={currentUser}
+          />
+        )}
+
+        {activeTab === 'scratchpad' && (
+          <ChatScratchpadView
+            thoughts={chatThoughts}
+            onAddThought={handleAddChatThought}
+            onConvertToIdea={handleConvertThoughtToIdea}
+            onConvertToTask={handleConvertThoughtToTask}
+            onDeleteThought={handleDeleteThought}
+            currentUser={currentUser}
+          />
+        )}
+
         {activeTab === 'results' && (
           <BusinessOutcomesView
             outcomes={outcomes}
-            scripts={scripts}
-            onAddOutcome={handleAddOutcome}
+            scripts={scripts.filter((s) => !s.isDeleted)}
+            onAddOutcome={(newOutcomeData) => {
+              const newOutcome: BusinessOutcome = {
+                ...newOutcomeData,
+                id: generateUUID(),
+                recordedAt: new Date().toISOString(),
+              };
+              const updated = [newOutcome, ...outcomes];
+              setOutcomes(updated);
+              saveStoredOutcomes(updated);
+              syncOutcomeToSupabase(newOutcome);
+
+              const ev = addXpEvent({
+                eventType: 'outcome_recorded',
+                xpAmount: 15,
+                description: `توثيق نتائج فيديو: ${newOutcome.ordersAttributed} طلب (${newOutcome.revenueAttributed.toLocaleString()} ج.م)`,
+              });
+              setXpEvents((prev) => [ev, ...prev]);
+              syncXpEventToSupabase(ev);
+            }}
           />
         )}
 
@@ -398,6 +731,13 @@ export default function FalconHQApp() {
             streakDays={streakDays}
             events={xpEvents}
             quests={INITIAL_TEAM_QUESTS}
+            performance={performance}
+            onUpdatePerformance={(newConf) => {
+              setPerformance(newConf);
+              saveStoredPerformance(newConf);
+            }}
+            onResetWeeklyXp={handleResetWeeklyXp}
+            onAdjustXp={handleAdjustXp}
             currentUser={currentUser}
           />
         )}
@@ -414,7 +754,7 @@ export default function FalconHQApp() {
         </button>
       </div>
 
-      {/* Modals */}
+      {/* Quick Capture Modal */}
       <QuickCaptureModal
         isOpen={isQuickCaptureOpen}
         onClose={() => setIsQuickCaptureOpen(false)}
@@ -422,12 +762,47 @@ export default function FalconHQApp() {
         currentUser={currentUser}
       />
 
+      {/* Edit Idea Modal (Point 7) */}
+      <EditIdeaModal
+        isOpen={!!editingIdea}
+        onClose={() => setEditingIdea(null)}
+        idea={editingIdea}
+        onSave={handleUpdateIdea}
+        currentUser={currentUser}
+      />
+
+      {/* Priority Modal */}
       <PriorityModal
         isOpen={!!priorityModalIdea}
         onClose={() => setPriorityModalIdea(null)}
         idea={priorityModalIdea}
         onSaveRatings={handleSaveRatings}
       />
+
+      {/* Trash Bin Modal (Point 4) */}
+      <TrashBinModal
+        isOpen={isTrashBinOpen}
+        onClose={() => setIsTrashBinOpen(false)}
+        deletedIdeas={deletedIdeas}
+        deletedScripts={deletedScripts}
+        deletedTasks={deletedTasks}
+        onRestoreIdea={handleRestoreIdea}
+        onRestoreScript={handleRestoreScript}
+        onRestoreTask={handleRestoreTask}
+        onPurgeIdea={handlePurgeIdea}
+        onPurgeScript={handlePurgeScript}
+        onPurgeTask={handlePurgeTask}
+        onEmptyTrash={handleEmptyTrash}
+      />
+
+      {/* Undo Toast Notification (Point 5) */}
+      {undoToast && (
+        <UndoToast
+          message={undoToast.message}
+          onUndo={undoToast.undoAction}
+          onClose={() => setUndoToast(null)}
+        />
+      )}
 
     </div>
   );

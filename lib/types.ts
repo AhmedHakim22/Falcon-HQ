@@ -1,5 +1,7 @@
 export type IdeaCategory = 'content' | 'marketing' | 'product' | 'sales' | 'bizdev';
 
+export type IdeaType = 'content' | 'product' | 'problem';
+
 export type IdeaStatus = 
   | 'inbox' 
   | 'evaluating' 
@@ -21,11 +23,14 @@ export interface Idea {
   id: string;
   title: string;
   category: IdeaCategory;
+  ideaType?: IdeaType; // 'content' (محتوى) | 'product' (منتج) | 'problem' (حل مشكلة)
   status: IdeaStatus;
   sourceUrl?: string;
   notes?: string;
   creatorName: string;
   assigneeName?: string;
+  voiceNoteBase64?: string;
+  voiceNoteDuration?: number;
   
   // Priority Ratings (1-5)
   goalFitScore?: number;
@@ -35,6 +40,8 @@ export interface Idea {
   totalPriorityScore?: number | null; // NULL if unrated
   
   scriptIds?: string[];
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -67,6 +74,8 @@ export interface Script {
   estimatedDurationSeconds: number;
   wordCount: number;
   lockedBy?: string | null;
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -93,7 +102,9 @@ export interface XpEvent {
     | 'script_completed' 
     | 'script_approved' 
     | 'video_filmed' 
-    | 'outcome_recorded';
+    | 'outcome_recorded'
+    | 'task_completed'
+    | 'manual_adjustment';
   xpAmount: number;
   description: string;
   createdAt: string;
@@ -106,4 +117,50 @@ export interface TeamQuest {
   currentCount: number;
   rewardXp: number;
   unit: string;
+}
+
+// -----------------------------------------------------------------------------
+// OPERATIONAL TASKS & KANBAN (Points 3, 11, 14)
+// -----------------------------------------------------------------------------
+export type TaskCategory = 'daily_recurring' | 'project';
+export type TaskStatus = 'todo' | 'in_progress' | 'done';
+
+export interface OperationalTask {
+  id: string;
+  title: string;
+  category: TaskCategory;
+  status: TaskStatus;
+  assigneeName: 'أحمد' | 'معاذ' | 'كلاهما';
+  priority: 'high' | 'medium' | 'low';
+  xpReward: number;
+  notes?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+// -----------------------------------------------------------------------------
+// CHAT SCRATCHPAD & VOICE MEMOS (Points 9, 10 - Chat Style)
+// -----------------------------------------------------------------------------
+export interface ChatThought {
+  id: string;
+  sender: 'أحمد' | 'معاذ';
+  text?: string;
+  audioBase64?: string;
+  audioDuration?: number;
+  convertedTo?: {
+    type: 'idea' | 'task' | 'script';
+    title: string;
+  };
+  createdAt: string;
+}
+
+// -----------------------------------------------------------------------------
+// PERFORMANCE & BONUS TARGETS (Point 11)
+// -----------------------------------------------------------------------------
+export interface PerformanceConfig {
+  weeklyTargetXp: number;
+  egpPer10Xp: number;
+  lastResetDate: string;
 }

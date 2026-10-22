@@ -52,6 +52,34 @@
   box-shadow: 0 10px 25px -4px rgba(28, 25, 23, 0.07), 0 2px 6px rgba(28, 25, 23, 0.03);
 }
 
+/* Dark Mode Overrides (Onyx & Charcoal + Crimson) */
+.dark body {
+  background-color: #121212;
+  color: #F5F5F4;
+}
+
+.dark .bento-card {
+  background-color: #1A1A1A;
+  border-color: #2E2E2E;
+  box-shadow: 0 4px 25px -4px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.dark .bento-card:hover {
+  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #121212;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #333333;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #444444;
+}
+
 /* Pulse animation for active filming/glow items */
 @keyframes falconGlow {
   0%, 100% {
